@@ -1,6 +1,6 @@
 // Turns the rows main already stores (Convex proposal + order, SingleStore audit_events)
 // into ReceiptData. Pure function: api.receipt.get can call it, and fixture.ts uses it too.
-import type { AuditEvent, CartLine, ReceiptData, RejectedLine, Source } from './types'
+import type { AuditEvent, CartLine, FactCheck, ReceiptData, RejectedLine, Source, Verdict } from './types'
 
 export type ProposalItemRow = {
   item: string
@@ -102,6 +102,15 @@ function summarize(step: string, input: any, output: any): string {
       const where = output?.cognee?.saved ? 'Cognee + Convex' : 'Convex'
       return `Saved ${output?.key ?? input?.key} = ${output?.value ?? input?.value} (${where})`
     }
+    case 'fact_check': {
+      const checks: any[] = output?.checks ?? []
+      if (!checks.length) return 'Senso fact-check: nothing to check'
+      const n = (v: string) => checks.filter((c) => c.verdict === v).length
+      const parts = [['verified', n('verified')], ['conflict', n('conflict')], ['unsupported', n('unsupported')], ['not checked', n('not_checked')]]
+        .filter(([, k]) => (k as number) > 0)
+        .map(([l, k]) => `${k} ${l}`)
+      return `Senso fact-check of the approve card: ${parts.join(', ')}`
+    }
     case 'stock_check':
       return 'Stock re-checked before charging'
     case 'purchase':
@@ -190,7 +199,7 @@ export function toReceiptData(args: {
     discountPct: i.milDiscountPct,
     discountNote:
       i.milDiscountPct > 0
-        ? 'verified'
+        ? 'verified on the store\'s own page (Senso)'
         : i.catalogMilDiscountPct > 0
           ? `store lists ${i.catalogMilDiscountPct}%, no source verified it, not applied`
           : 'not found, not applied',
@@ -211,6 +220,14 @@ export function toReceiptData(args: {
     rule: null,
   }))
 
+  // Senso verdicts from the last fact-check before the card was sent.
+  const factRow = [...rows].reverse().find((r) => r.step === 'fact_check')
+  const factChecks: FactCheck[] = ((factRow ? view(factRow).output?.checks : null) ?? []).map((c: any) => ({
+    claim: c.verdict === 'verified' ? c.claim : `${c.claim}. ${c.note ?? ''}`.trim(),
+    verdict: (['verified', 'conflict', 'unsupported', 'not_checked'].includes(c.verdict) ? c.verdict : 'not_checked') as Verdict,
+    source: c.source ? { title: c.source.title, url: c.source.url, retrievedAt: c.source.retrievedAt, contentId: c.source.contentId } : undefined,
+  }))
+
   const approvalEvent = rows.find((r) => r.step === 'approval' && parse(r.output)?.allowed)
   return {
     proposalId: proposal._id,
@@ -226,7 +243,7 @@ export function toReceiptData(args: {
     memory: memories,
     cart,
     rejected,
-    factChecks: [],
+    factChecks,
     approval:
       proposal.approvedAt !== null
         ? { at: msToIso(proposal.approvedAt), by: 'Buyer replied YES' }
