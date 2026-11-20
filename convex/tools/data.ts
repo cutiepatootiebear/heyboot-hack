@@ -47,6 +47,7 @@ export const createProposal = internalMutation({
     total: v.number(),
     budget: v.number(),
     card: v.string(),
+    smsCard: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Only one live proposal per user: older pending ones are superseded.
@@ -152,5 +153,26 @@ export const orderForProposal = internalQuery({
       .query("orders")
       .withIndex("by_idempotencyKey", (q) => q.eq("idempotencyKey", `${args.userId}:${args.proposalId}`))
       .unique();
+  },
+});
+
+// The pending proposal created by a given run, if any (used to send the compact iMessage card).
+export const pendingProposalForRun = internalQuery({
+  args: { userId: v.id("users"), runId: v.id("runs") },
+  handler: async (ctx, args) => {
+    const pending = await ctx.db
+      .query("proposals")
+      .withIndex("by_userId_and_status", (q) => q.eq("userId", args.userId).eq("status", "pending"))
+      .order("desc")
+      .take(5);
+    return pending.find((p) => p.runId === args.runId) ?? null;
+  },
+});
+
+export const setSmsCard = internalMutation({
+  args: { proposalId: v.id("proposals"), smsCard: v.string() },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.proposalId, { smsCard: args.smsCard });
+    return null;
   },
 });

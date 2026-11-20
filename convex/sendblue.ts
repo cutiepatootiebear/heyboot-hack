@@ -51,7 +51,16 @@ export const handleInbound = internalAction({
       status: out.status,
       channel: "sms",
     });
-    const sent = await sendText(args.from, out.reply);
+    // iMessage gets the compact card (one line per item, one receipt link) instead of the web card.
+    let text = out.reply;
+    if (args.kind === "agent") {
+      const proposal = await ctx.runQuery(internal.tools.data.pendingProposalForRun, { userId: args.userId, runId: args.runId });
+      if (proposal?.smsCard) {
+        const intro = out.reply.split("Here's what I found:")[0].trim();
+        text = intro && intro.length <= 200 && !intro.includes("http") ? `${intro}\n\n${proposal.smsCard}` : proposal.smsCard;
+      }
+    }
+    const sent = await sendText(args.from, text);
     if (!sent.ok) console.error(`Sendblue send failed ${sent.status}: ${sent.body}`);
     return null;
   },

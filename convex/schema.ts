@@ -58,6 +58,7 @@ export default defineSchema({
     total: v.number(),
     budget: v.number(),
     card: v.string(),
+    smsCard: v.optional(v.string()), // compact card for iMessage (one line per item, one link)
     status: v.union(
       v.literal("pending"),
       v.literal("approved"),

@@ -12,6 +12,7 @@ import { searchCatalog } from "../tools/catalog";
 import { proposePurchase, checkedAt, type ProposeInput } from "../tools/propose";
 import { SYSTEM_PROMPT } from "./prompt";
 import { CRISIS_REPLY, classify } from "../crisis";
+import { stripNotes } from "./sanitize";
 import { cogneeConfigured, recall as cogneeRecall, save as cogneeSave } from "../integrations/cognee";
 
 const MODEL = "claude-sonnet-5-5";
@@ -169,10 +170,11 @@ export const run = internalAction({
           .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
           .map((b) => b.text.trim())
           .filter(Boolean);
-        const text = textBlocks[textBlocks.length - 1] ?? "";
+        const cleaned = stripNotes(textBlocks[textBlocks.length - 1] ?? "");
+        const text = cleaned.text;
         let reply = text || "Sorry, I didn't get that. What gear do you need, and what's your budget?";
         if (proposalCard && !reply.includes("Reply YES")) reply = `${reply}\n\n${proposalCard}`.trim();
-        await audit.log("outbound", null, { reply, stop_reason: response.stop_reason, textBlocks: textBlocks.length, droppedText: textBlocks.slice(0, -1) });
+        await audit.log("outbound", null, { reply, stop_reason: response.stop_reason, textBlocks: textBlocks.length, droppedText: [...textBlocks.slice(0, -1), ...cleaned.dropped] });
         return { reply, status: "done" };
       }
 

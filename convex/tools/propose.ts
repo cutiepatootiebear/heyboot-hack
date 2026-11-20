@@ -76,6 +76,54 @@ async function checkStores(rows: { store: string; catalogPct: number }[]): Promi
   return out;
 }
 
+const RECEIPT_BASE = "https://heyboot-hack.vercel.app/receipt/";
+
+// "Brooks Adrenaline GTS 25, Men's 10.5 Wide (EE), Black/Black/Ebony" → "Brooks Adrenaline GTS 25, 10.5W"
+// "USMC MCCUU Woodland MARPAT Blouse (cammies), Medium-Regular, Used" → "MCCUU Woodland Blouse, M-Reg, used"
+export function shortItem(item: string): string {
+  const [head, ...rest] = item.split(",").map((x) => x.trim());
+  const name = head
+    .replace(/\(cammies\)/i, "")
+    .replace(/^USMC\s+/i, "")
+    .replace(/\bMARPAT\s+/i, "")
+    .replace(/\bUtility\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  let size = "";
+  let cond = "";
+  for (const part of rest) {
+    const shoe = part.match(/(\d{1,2}(?:\.5)?)\s*Wide/i);
+    if (shoe) size = `${shoe[1]}W`;
+    else if (/^(X?S|Small|Medium|Large|X-?Large)(-\w+)?$/i.test(part))
+      size = part.replace(/^Small/i, "S").replace(/^Medium/i, "M").replace(/^Large/i, "L").replace(/-Regular$/i, "-Reg");
+    else if (/^(New|Used)$/i.test(part)) cond = part.toLowerCase();
+  }
+  return [name, size, cond].filter(Boolean).join(", ");
+}
+
+const shortStore = (store: string) => store.replace(/\s+Sports$/i, "");
+
+export function buildSmsCard(
+  items: { item: string; store: string; qty: number; finalPrice: number; milDiscountPct: number; discountSourceUrl: string | null }[],
+  total: number,
+  budget: number,
+  proposalId: string,
+): string {
+  const lines = items.map((i) => {
+    const qty = i.qty > 1 ? `${i.qty}× ` : "";
+    const disc = i.milDiscountPct > 0 && i.discountSourceUrl ? ` (${i.milDiscountPct}% mil discount, verified)` : "";
+    return `• ${qty}${shortItem(i.item)}, ${shortStore(i.store)}: ${money(i.finalPrice)}${disc}`;
+  });
+  return [
+    "TEST MODE",
+    ...lines,
+    `Total ${money(total)} (budget ${money(budget)}).`,
+    "Reply YES to buy. No real money moves.",
+    "I'll never ask for your card, SSN, bank details or passwords by text.",
+    `Receipt & sources: ${RECEIPT_BASE}${proposalId}`,
+  ].join("\n");
+}
+
 export async function proposePurchase(
   ctx: ActionCtx,
   userId: Id<"users">,
@@ -134,6 +182,10 @@ export async function proposePurchase(
     total,
     budget: input.budget,
     card,
+  });
+  await ctx.runMutation(internal.tools.data.setSmsCard, {
+    proposalId,
+    smsCard: buildSmsCard(items, total, input.budget, proposalId),
   });
   // Show a claim only when the card makes one (a catalog discount) or Senso found a discount
   // the catalog lacks. Stores with no discount claimed and none found aren't listed.

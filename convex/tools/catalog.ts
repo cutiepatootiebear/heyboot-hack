@@ -46,7 +46,10 @@ export async function searchCatalog(opts: {
     .toLowerCase()
     .split(/[^a-z0-9.\-]+/)
     .filter((w) => w.length >= 2);
+  // Faded/damaged listings are hidden unless the query asks for them.
+  const wantsWorn = /\b(faded|damaged)\b/i.test(opts.query);
   const scored = rows
+    .filter((r) => wantsWorn || !/\b(faded|damaged)\b/i.test(r.item))
     .filter((r) => (opts.inStockOnly ? r.inStock : true))
     .filter((r) => (opts.maxPrice !== null ? r.price <= opts.maxPrice : true))
     .map((r) => {
