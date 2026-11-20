@@ -65,6 +65,7 @@ export const yesFastPath = internalAction({
         runId: args.runId,
         text: note,
         startSeq: audit.current(),
+        startHash: audit.lastHash(),
       });
       const reply = `Heads up: ${out.map((o) => `${o.item} at ${o.store}`).join(", ")} just went out of stock, so I didn't charge you.\n\n${swap.reply}`;
       await audit.log("outbound", null, { reply });

@@ -31,6 +31,20 @@ type AuditRow = {
   output: unknown;
   sources: unknown;
   ts: string;
+  canonical: string | null;
+  prev_hash: string | null;
+  hash: string | null;
+};
+
+const COLS = "run_id, seq, step, input, output, sources, ts, canonical, prev_hash, hash";
+const toDatetime = (ms: number) => new Date(ms).toISOString().replace("T", " ").replace("Z", "");
+const parse = (v: unknown): any => {
+  if (typeof v !== "string") return v;
+  try {
+    return JSON.parse(v);
+  } catch {
+    return v;
+  }
 };
 
 export type ReceiptPayload = {
@@ -53,8 +67,8 @@ export const get = action({
 
     // Runs that belong to this proposal: the run that created it, plus every YES attempt
     // that approved it or was refused because it was already handled.
-    const audit = await s2Query<AuditRow>(
-      `SELECT run_id, seq, step, input, output, sources, ts FROM audit_events
+    const own = await s2Query<AuditRow>(
+      `SELECT ${COLS} FROM audit_events
        WHERE run_id IN (
          SELECT DISTINCT run_id FROM audit_events
          WHERE run_id = ?
@@ -65,6 +79,32 @@ export const get = action({
        LIMIT 500`,
       [proposal.runId, proposal._id, proposal._id],
     );
+
+    // Earlier turns of the same conversation (e.g. the original request, then the agent asking
+    // for sizes): walk back over this user's runs from the 15 minutes before, stopping at a run
+    // that produced its own proposal. At most 3 runs.
+    const proposalRunStart = own.filter((r) => r.run_id === proposal.runId).map((r) => String(r.ts)).sort()[0];
+    let earlier: AuditRow[] = [];
+    if (proposalRunStart) {
+      const windowStart = toDatetime(new Date(proposalRunStart.replace(" ", "T") + "Z").getTime() - 15 * 60 * 1000);
+      const prior = await s2Query<AuditRow>(
+        `SELECT ${COLS} FROM audit_events WHERE user_id = ? AND ts >= ? AND ts < ? ORDER BY ts, seq LIMIT 500`,
+        [proposal.userId, windowStart, proposalRunStart],
+      );
+      const byRun = new Map<string, AuditRow[]>();
+      for (const r of prior) {
+        if (r.run_id === proposal.runId) continue;
+        byRun.set(r.run_id, [...(byRun.get(r.run_id) ?? []), r]);
+      }
+      const runsNewestFirst = [...byRun.entries()].sort((a, b) => String(b[1][0].ts).localeCompare(String(a[1][0].ts)));
+      for (const [, rows] of runsNewestFirst.slice(0, 3)) {
+        const madeProposal = rows.some((r) => r.step === "propose" && parse(r.output)?.proposalId);
+        const wasYes = rows.some((r) => r.step === "approval");
+        if (madeProposal || wasYes) break;
+        earlier = [...rows, ...earlier];
+      }
+    }
+    const audit = [...earlier, ...own];
 
     return {
       proposal: {
