@@ -1,19 +1,21 @@
 // Cognee Cloud memory (plain fetch; no Convex functions here). Keanu owns this file;
 // first version written on main. Callers must treat failures as "use the Convex fallback".
 //
-// Env: COGNEE_API_KEY, COGNEE_BASE_URL (per-workspace, e.g. https://tenant-<id>.aws.cognee.ai,
-// copied from platform.cognee.ai → API Keys → Connection panel).
+// Env: COGNEE_API_KEY, COGNEE_BASE_URL (per-workspace, e.g. https://tenant-<id>.aws.cognee.ai),
+// COGNEE_TENANT_ID (sent as X-Tenant-Id). All three are on platform.cognee.ai → API Keys → Connection.
 // Docs: https://docs.cognee.ai/cognee-cloud/http-api.md
 
 const TIMEOUT_MS = 8000;
 
 export type CogneeMemory = { key: string; value: string; savedAt: string };
 
-function config(): { base: string; key: string } | null {
+function config(): { base: string; headers: Record<string, string> } | null {
   const key = process.env.COGNEE_API_KEY;
   const base = process.env.COGNEE_BASE_URL;
   if (!key || !base) return null;
-  return { key, base: base.replace(/\/$/, "") };
+  const headers: Record<string, string> = { "X-Api-Key": key };
+  if (process.env.COGNEE_TENANT_ID) headers["X-Tenant-Id"] = process.env.COGNEE_TENANT_ID;
+  return { base: base.replace(/\/$/, ""), headers };
 }
 
 export const cogneeConfigured = () => config() !== null;
@@ -40,7 +42,7 @@ export async function save(userId: string, key: string, value: string): Promise<
   form.append("datasetName", datasetFor(userId));
   const res = await withTimeout(`${c.base}/api/v1/remember`, {
     method: "POST",
-    headers: { "X-Api-Key": c.key },
+    headers: c.headers,
     body: form,
   });
   const text = await res.text();
@@ -61,7 +63,7 @@ export async function recall(userId: string, query: string): Promise<CogneeMemor
   if (!c) throw new Error("Cognee not configured");
   const res = await withTimeout(`${c.base}/api/v1/search`, {
     method: "POST",
-    headers: { "X-Api-Key": c.key, "Content-Type": "application/json" },
+    headers: { ...c.headers, "Content-Type": "application/json" },
     body: JSON.stringify({ query, search_type: "GRAPH_COMPLETION", datasets: [datasetFor(userId)] }),
   });
   const text = await res.text();
