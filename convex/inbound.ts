@@ -2,6 +2,7 @@
 // (Ben owns this file; minimal version written on main for the 1:30 milestone.)
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 const YES_WORDS = new Set(["yes", "y", "yes!", "yes.", "yep", "yeah", "ok yes", "yes please"]);
 export const isYes = (text: string) => YES_WORDS.has(text.trim().toLowerCase());
@@ -36,6 +37,8 @@ export const receive = internalMutation({
         for (const m of DEMO_MEMORIES) {
           await ctx.db.insert("memories", { userId, key: m.key, value: m.value, source: "seed" });
         }
+        // Copy the seed into Cognee too (no-op if Cognee isn't configured).
+        await ctx.scheduler.runAfter(0, internal.tools.memorySync.seedCognee, { userId });
       }
       user = (await ctx.db.get(userId))!;
     }

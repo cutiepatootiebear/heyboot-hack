@@ -11,6 +11,7 @@ import { createAuditor } from "../lib/audit";
 import { searchCatalog } from "../tools/catalog";
 import { proposePurchase, checkedAt, type ProposeInput } from "../tools/propose";
 import { SYSTEM_PROMPT } from "./prompt";
+import { cogneeConfigured, recall as cogneeRecall } from "../integrations/cognee";
 
 const MODEL = "claude-sonnet-5-5";
 const MAX_TURNS = 8;
@@ -175,9 +176,23 @@ async function runTool(
   try {
     switch (name) {
       case "recall_memory": {
+        const query = typeof input.query === "string" && input.query.trim() ? input.query : "sizes and preferences";
+        let fallbackReason = "Cognee not configured";
+        if (cogneeConfigured()) {
+          try {
+            const memories = await cogneeRecall(userId, query);
+            if (memories.length) {
+              await audit.log("recall_memory", input, { memories, backend: "cognee" });
+              return { result: { memories, backend: "cognee" }, isError: false };
+            }
+            fallbackReason = "Cognee returned nothing";
+          } catch (err) {
+            fallbackReason = `Cognee error: ${err instanceof Error ? err.message : String(err)}`;
+          }
+        }
         const memories = await ctx.runQuery(internal.tools.data.recallMemories, { userId });
-        await audit.log("recall_memory", input, { memories, backend: "convex (Cognee pending)" });
-        return { result: { memories }, isError: false };
+        await audit.log("recall_memory", input, { memories, backend: "convex", fallbackReason });
+        return { result: { memories, backend: "convex" }, isError: false };
       }
       case "search_catalog": {
         const rows = await searchCatalog({
