@@ -1,43 +1,41 @@
 import type { Auditor } from "../lib/audit";
+import { lookup, sensoConfigured } from "../integrations/senso";
 
-const TIMEOUT_MS = 8000;
-
-export type SensoSource = { title: string; url: string; retrievedAt: string };
+// What the model sees: the answer and where it came from.
+export type ContextSource = { title: string; url: string; retrievedAt: string };
 
 export type ContextResult = {
   answer: string | null;
-  sources: Array<SensoSource>;
+  sources: Array<ContextSource>;
   notFound: boolean;
   backend: string;
   error?: string;
 };
 
+// Senso lookup for the lookup_context tool. The search itself (scoping to the official
+// source pages, today's date, NOT_FOUND handling) lives in ../integrations/senso.ts.
 export async function lookupContext(question: string, audit: Auditor): Promise<ContextResult> {
-  const base = process.env.SENSO_BASE_URL;
-  const key = process.env.SENSO_API_KEY;
   let result: ContextResult;
+  // Senso's own ids for each cited chunk, kept for the audit trail only.
+  let matches: Array<{ title: string; content_id: string; version_id: string | null; score: number }> = [];
 
-  if (!base || !key) {
+  if (!sensoConfigured()) {
     result = { answer: null, sources: [], notFound: true, backend: "unconfigured" };
   } else {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
-      const path = process.env.SENSO_LOOKUP_PATH ?? "/lookup";
-      const response = await fetch(`${base.replace(/\/$/, "")}${path}`, {
-        method: "POST",
-        headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-        body: JSON.stringify({ question }),
-        signal: controller.signal,
-      });
-      if (!response.ok) throw new Error(`Senso ${response.status}`);
-      const body = (await response.json()) as { answer?: string | null; sources?: Array<SensoSource> };
+      const found = await lookup(question);
       result = {
-        answer: typeof body.answer === "string" && body.answer.trim() ? body.answer : null,
-        sources: Array.isArray(body.sources) ? body.sources.slice(0, 8) : [],
-        notFound: !(typeof body.answer === "string" && body.answer.trim()),
+        answer: found.answer,
+        sources: found.sources.map(({ title, url, retrievedAt }) => ({ title, url, retrievedAt })),
+        notFound: found.answer === null,
         backend: "senso",
       };
+      matches = found.sources.map((s) => ({
+        title: s.title,
+        content_id: s.contentId,
+        version_id: s.versionId,
+        score: s.score,
+      }));
     } catch (err) {
       result = {
         answer: null,
@@ -46,19 +44,17 @@ export async function lookupContext(question: string, audit: Auditor): Promise<C
         backend: "error",
         error: err instanceof Error ? err.message : String(err),
       };
-    } finally {
-      clearTimeout(timer);
     }
   }
 
   await audit.log(
     "lookup_context",
     { question },
-    result,
+    { ...result, matches },
     result.sources.map((source) => ({
       title: source.title,
       url: source.url,
-      captured_at: source.retrievedAt,
+      retrieved_at: source.retrievedAt,
     })),
   );
   return result;
