@@ -321,7 +321,7 @@ export function Receipt({ data }: { data: ReceiptData }) {
           </div>
           <details className="rc-details">
             <summary>
-              Show all {data.events.length} steps{data.events.some((e) => e.hash) ? ' and their hashes' : ''}
+              Show more details: all {data.events.length} steps{data.events.some((e) => e.hash) ? ', sources and hashes' : ' and sources'}
             </summary>
           <ol className="rc-log">
             {data.events.map((e, i) => (
