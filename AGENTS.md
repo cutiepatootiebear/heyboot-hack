@@ -63,7 +63,7 @@ A new Marine texts what he needs before SOI. Hey Boot remembers his sizes and bu
 4. **Acts.** YES → Stripe test-mode charge. Order ID logged.
 5. **Failure handling.** YES twice → one charge (idempotency key). Out of stock → swap to option 2 and ask again.
 6. **Receipt + audit trail page:** input, memory recalled, catalog rows read, Senso sources cited, options rejected and why, discount applied, approval, charge, order ID.
-7. **Side beat:** crisis classifier runs first on every inbound → 988 press 1 / text 838255.
+7. ~~Side beat: crisis classifier~~ Not in the demo: there is no crisis classifier on `main` (Ben's unmerged `agent-loop` branch has a draft).
 
 ## Hard rules
 
@@ -76,11 +76,11 @@ A new Marine texts what he needs before SOI. Hey Boot remembers his sizes and bu
 
 ## Architecture
 
-- Stack: TanStack Start + Convex + TypeScript on Vercel. Claude Sonnet runs the tool loop; Claude Haiku runs the crisis classifier.
-- Inbound: Sendblue webhook (if the number is live) or `POST /chat` web fallback → dedupe → Haiku crisis classifier → Sonnet tool loop.
+- Stack: TanStack Start + Convex + TypeScript on Vercel. Claude Sonnet runs the tool loop.
+- Inbound: `POST /chat` (web chat, the default) or `POST /sendblue?token=…` (iMessage, only when `SENDBLUE_ENABLED=true`) → dedupe → YES fast path or Sonnet tool loop. There is no crisis classifier on `main`.
 - YES fast path (no model call): a YES marks the sender's pending proposal approved and charges it, only if the proposal belongs to that user, is `pending`, and is under 30 minutes old. Every attempt, allowed or refused, is logged to `audit_events`. One order per proposal; Stripe idempotency key `${userId}:${proposalId}`.
-- Model tools (8): `recall_memory`, `save_memory` (Cognee), `search_catalog` (SingleStore), `lookup_context` (Senso, answer + sources), `propose_purchase` (takes item/store/qty; server fills price, discount, URL from the catalog), `purchase` (Stripe test mode), `escalate_crisis`, `refuse`. Audit logging is automatic in the loop, not a model tool.
-- SingleStore (`db/singlestore.sql`): `catalog(item, store, price, mil_discount_pct, url, captured_at, in_stock)`, `audit_events(id, run_id, user_id, seq, step, input, output, sources, ts)`.
+- Model tools on `main` (4): `recall_memory`, `save_memory` (Cognee, Convex fallback), `search_catalog` (SingleStore), `propose_purchase` (takes item/store/qty; server fills price, discount, URL from the catalog; Senso fact-checks each store's military discount before it is applied). The Stripe test charge runs in the YES fast path, not as a model tool. `lookup_context`, `refuse` and `escalate_crisis` exist only on Ben's unmerged `agent-loop` branch. Audit logging is automatic, not a model tool.
+- SingleStore (`db/singlestore.sql`): `catalog(item, store, price, mil_discount_pct, url, captured_at, in_stock)`, `audit_events(id, run_id, user_id, seq, step, input, output, sources, ts, canonical, prev_hash, hash)`, where `hash = sha256(prev_hash|canonical)` chained per run (tamper-evident; the receipt re-verifies it).
 - Senso: ingest 5 to 10 source pages (military discount policies, SOI-W check-in page). Agent cites them.
 - Receipt page reads Convex + SingleStore. Large type for the projector. Demo data only.
 - Fallback: iMessage → web chat → recorded video.
