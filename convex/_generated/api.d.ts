@@ -10,6 +10,7 @@
 
 import type * as agent_loop from "../agent/loop.js";
 import type * as agent_prompt from "../agent/prompt.js";
+import type * as crisis from "../crisis.js";
 import type * as http from "../http.js";
 import type * as inbound from "../inbound.js";
 import type * as integrations_cognee from "../integrations/cognee.js";
@@ -37,6 +38,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "agent/loop": typeof agent_loop;
   "agent/prompt": typeof agent_prompt;
+  crisis: typeof crisis;
   http: typeof http;
   inbound: typeof inbound;
   "integrations/cognee": typeof integrations_cognee;

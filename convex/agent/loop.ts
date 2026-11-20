@@ -11,6 +11,7 @@ import { createAuditor } from "../lib/audit";
 import { searchCatalog } from "../tools/catalog";
 import { proposePurchase, checkedAt, type ProposeInput } from "../tools/propose";
 import { SYSTEM_PROMPT } from "./prompt";
+import { CRISIS_REPLY, classify } from "../crisis";
 import { cogneeConfigured, recall as cogneeRecall, save as cogneeSave } from "../integrations/cognee";
 
 const MODEL = "claude-sonnet-5-5";
@@ -109,7 +110,16 @@ export const run = internalAction({
   },
   handler: async (ctx, args): Promise<{ reply: string; status: "done" | "refused" | "error" }> => {
     const audit = createAuditor(args.runId, args.userId, args.startSeq ?? 0, args.startHash);
-    if (!args.startSeq) await audit.log("inbound", { text: args.text, route: "agent" }, null);
+    if (!args.startSeq) {
+      await audit.log("inbound", { text: args.text, route: "agent" }, null);
+      // Crisis check first on every user message that reaches the agent (never on YES).
+      const crisis = await classify(args.text);
+      await audit.log("crisis_check", { text: args.text }, crisis);
+      if (crisis.crisis) {
+        await audit.log("outbound", null, { reply: CRISIS_REPLY, crisis: true });
+        return { reply: CRISIS_REPLY, status: "refused" };
+      }
+    }
 
     // Conversation so far (the current inbound message is already stored, so it's the last "in").
     const past: { direction: "in" | "out"; body: string }[] = await ctx.runQuery(internal.inbound.history, {
