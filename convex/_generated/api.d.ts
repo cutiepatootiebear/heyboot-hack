@@ -20,6 +20,7 @@ import type * as lib_singlestore from "../lib/singlestore.js";
 import type * as myFunctions from "../myFunctions.js";
 import type * as receipt from "../receipt.js";
 import type * as scoring_scoring from "../scoring/scoring.js";
+import type * as sendblue from "../sendblue.js";
 import type * as tools_catalog from "../tools/catalog.js";
 import type * as tools_data from "../tools/data.js";
 import type * as tools_factcheck from "../tools/factcheck.js";
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   myFunctions: typeof myFunctions;
   receipt: typeof receipt;
   "scoring/scoring": typeof scoring_scoring;
+  sendblue: typeof sendblue;
   "tools/catalog": typeof tools_catalog;
   "tools/data": typeof tools_data;
   "tools/factcheck": typeof tools_factcheck;

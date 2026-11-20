@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { sendblueEnabled } from "./sendblue";
 
 const http = httpRouter();
 
@@ -68,6 +69,51 @@ http.route({
   path: "/chat",
   method: "OPTIONS",
   handler: httpAction(async () => new Response(null, { status: 204, headers: CORS })),
+});
+
+// POST /sendblue?token=<SENDBLUE_WEBHOOK_TOKEN>  Sendblue inbound-message webhook (iMessage/SMS).
+// Off unless SENDBLUE_ENABLED=true. Replies are sent asynchronously so Sendblue gets a fast 200.
+http.route({
+  path: "/sendblue",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const token = new URL(req.url).searchParams.get("token");
+    if (!process.env.SENDBLUE_WEBHOOK_TOKEN || token !== process.env.SENDBLUE_WEBHOOK_TOKEN) {
+      return json({ error: "forbidden" }, 403);
+    }
+    if (!sendblueEnabled()) return json({ ignored: "SENDBLUE_ENABLED is off" });
+
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return json({ error: "invalid JSON" }, 400);
+    }
+    const b = body as Record<string, unknown>;
+    if (b?.is_outbound === true) return json({ ignored: "outbound" });
+    const from = typeof b?.from_number === "string" ? b.from_number.trim() : "";
+    const text = typeof b?.content === "string" ? b.content.trim() : "";
+    const handleId = typeof b?.message_handle === "string" ? b.message_handle : "";
+    if (!/^\+\d{8,15}$/.test(from) || !text || text.length > 2000 || !handleId) {
+      return json({ ignored: "not an inbound text message" });
+    }
+
+    const r = await ctx.runMutation(internal.inbound.receive, {
+      handle: from,
+      text,
+      externalId: `sb:${handleId}`,
+      channel: "sms",
+    });
+    if (r.duplicate) return json({ duplicate: true });
+    await ctx.scheduler.runAfter(0, internal.sendblue.handleInbound, {
+      userId: r.userId,
+      runId: r.runId,
+      kind: r.kind,
+      text,
+      from,
+    });
+    return json({ accepted: true, runId: r.runId });
+  }),
 });
 
 export default http;
