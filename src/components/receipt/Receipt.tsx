@@ -75,7 +75,7 @@ function ChainLine({ status }: { status: ChainStatus }) {
     case 'unhashed':
       return <span className="rc-warn">Events have no stored hashes, so the chain can't be verified</span>
     case 'broken':
-      return <span className="rc-bad">✗ Hash chain broken at event #{status.atSeq}: record was changed</span>
+      return <span className="rc-bad">✗ Hash chain broken at step #{status.atSeq}: record was changed</span>
     case 'unavailable':
       return <span className="rc-warn">This browser can't verify hashes</span>
   }
@@ -102,6 +102,11 @@ export function Receipt({ data }: { data: ReceiptData }) {
 
   const total = data.cart.reduce((sum, l) => sum + l.qty * l.unitPrice, 0)
   const isGpc = data.mode === 'gpc'
+  const showScore = data.cart.some((l) => l.score !== undefined)
+  const showChecks = data.cart.some((l) => l.checks.length > 0)
+  const showDiscount = data.cart.some((l) => l.listPrice !== undefined)
+  const showRejectPrice = data.rejected.some((r) => r.price !== undefined)
+  const footSpan = 2 + (showScore ? 1 : 0) + (showChecks ? 1 : 0)
 
   return (
     <div className="rc-page">
@@ -114,12 +119,13 @@ export function Receipt({ data }: { data: ReceiptData }) {
 
       <article className="rc-doc">
         <header className="rc-head">
-          <h1>{isGpc ? 'Procurement Audit Trail' : 'Purchase Receipt'}</h1>
+          <h1>{isGpc ? 'Procurement Audit Trail' : 'Hey Boot Receipt'}</h1>
           <div className="rc-meta">
             <div><b>{isGpc ? 'Cardholder' : 'Buyer'}:</b> {data.buyer.label}</div>
             <div><b>Date:</b> {datePT(data.request.at)}</div>
             <div><b>Approver:</b> {data.approver.label}</div>
             {data.fundLine ? <div><b>Fund line:</b> {data.fundLine}</div> : null}
+            {data.budget !== undefined ? <div><b>Budget:</b> {usd(data.budget)}</div> : null}
             <div><b>Proposal:</b> <code>{data.proposalId}</code></div>
             {data.order ? <div><b>Order:</b> <code>{data.order.orderId}</code></div> : null}
           </div>
@@ -129,63 +135,91 @@ export function Receipt({ data }: { data: ReceiptData }) {
           <blockquote className="rc-quote">“{data.request.text}”</blockquote>
           <div className="rc-sub">Received {timePT(data.request.at)}</div>
           {data.memory.length ? (
-            <dl className="rc-memory">
-              {data.memory.map((m) => (
-                <div key={m.key}>
-                  <dt>{m.key}</dt>
-                  <dd>{m.value}</dd>
-                </div>
-              ))}
-            </dl>
+            <>
+              <div className="rc-label">{isGpc ? 'Unit profile used' : 'Remembered about you'}</div>
+              <dl className="rc-memory">
+                {data.memory.map((m) => (
+                  <div key={m.key}>
+                    <dt>{m.key}</dt>
+                    <dd>{m.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </>
           ) : null}
         </Section>
 
-        <Section title="2 · Approved cart">
+        <Section title={isGpc ? '2 · Approved cart' : '2 · What you bought'}>
           <div className="rc-scroll">
             <table className="rc-table">
               <thead>
                 <tr>
                   <th>Item</th>
-                  <th>Vendor</th>
+                  <th>{isGpc ? 'Vendor' : 'Store'}</th>
                   <th className="rc-num">Qty</th>
-                  <th className="rc-num">Unit</th>
+                  <th className="rc-num">{showDiscount ? 'Price' : 'Unit'}</th>
+                  {showDiscount ? <th>Military discount</th> : null}
                   <th className="rc-num">Line</th>
-                  <th>Score</th>
-                  <th>Compliance</th>
+                  {showScore ? <th>Score</th> : null}
+                  {showChecks ? <th>Compliance</th> : null}
                 </tr>
               </thead>
               <tbody>
                 {data.cart.map((l) => (
                   <tr key={l.id}>
                     <td>
-                      <code>{l.id}</code>
-                      <div>{l.description}</div>
+                      <div className="rc-item">{l.description}</div>
                       <a className="rc-src" href={l.url} target="_blank" rel="noreferrer">
-                        price captured {timePT(l.capturedAt)}
+                        price checked {datePT(l.capturedAt)}, {timePT(l.capturedAt)} ↗
                       </a>
                     </td>
                     <td>{l.vendor}</td>
                     <td className="rc-num">{l.qty}</td>
-                    <td className="rc-num">{usd(l.unitPrice)}</td>
-                    <td className="rc-num">{usd(l.qty * l.unitPrice)}</td>
-                    <td>
-                      <b>{l.score.toFixed(2)}</b>
-                      <div className="rc-note">{l.scoreDisplay.replace(/^[\d.]+\s*/, '')}</div>
+                    <td className="rc-num">
+                      {l.listPrice !== undefined && l.listPrice !== l.unitPrice ? (
+                        <>
+                          <s className="rc-note">{usd(l.listPrice)}</s> {usd(l.unitPrice)}
+                        </>
+                      ) : (
+                        usd(l.unitPrice)
+                      )}
                     </td>
-                    <td>{l.checks.map((c) => <CheckBadge key={c.label} c={c} />)}</td>
+                    {showDiscount ? (
+                      <td>
+                        {l.discountPct ? (
+                          <span className="rc-badge rc-pass">✓ {l.discountPct}% verified</span>
+                        ) : (
+                          <span className="rc-badge rc-na">– Not applied</span>
+                        )}
+                        {l.discountNote && l.discountNote !== 'verified' ? <span className="rc-note">{l.discountNote}</span> : null}
+                        {l.discountSource ? <Cite source={l.discountSource} rule="source" /> : null}
+                      </td>
+                    ) : null}
+                    <td className="rc-num">{usd(l.qty * l.unitPrice)}</td>
+                    {showScore ? (
+                      <td>
+                        <b>{l.score?.toFixed(2)}</b>
+                        <div className="rc-note">{(l.scoreDisplay ?? '').replace(/^[\d.]+\s*/, '')}</div>
+                      </td>
+                    ) : null}
+                    {showChecks ? <td>{l.checks.map((c) => <CheckBadge key={c.label} c={c} />)}</td> : null}
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={4} className="rc-num"><b>Total</b></td>
+                  <td colSpan={showDiscount ? 4 : 3} className="rc-num"><b>Total</b></td>
                   <td className="rc-num"><b>{usd(total)}</b></td>
-                  <td colSpan={2}>
+                  <td colSpan={footSpan - 1 || 1}>
                     {data.threshold ? (
                       <span className={total <= data.threshold.amount ? 'rc-ok' : 'rc-bad'}>
                         {total <= data.threshold.amount ? 'Under' : 'Over'} the {usd(data.threshold.amount)}{' '}
                         {data.threshold.label.toLowerCase()}{' '}
                         <Cite source={data.threshold.source} rule="FAR 2.101" />
+                      </span>
+                    ) : data.budget !== undefined ? (
+                      <span className={total <= data.budget ? 'rc-ok' : 'rc-bad'}>
+                        {total <= data.budget ? `Under your ${usd(data.budget)} budget` : `Over your ${usd(data.budget)} budget`}
                       </span>
                     ) : null}
                   </td>
@@ -195,48 +229,59 @@ export function Receipt({ data }: { data: ReceiptData }) {
           </div>
         </Section>
 
-        <Section title="3 · Rejected options and why">
-          <div className="rc-scroll">
-            <table className="rc-table">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Vendor</th>
-                  <th className="rc-num">Price</th>
-                  <th>Finding</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.rejected.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <code>{r.id}</code>
-                      <div>{r.description}</div>
-                    </td>
-                    <td>{r.vendor}</td>
-                    <td className="rc-num">{usd(r.price)}</td>
-                    <td>
-                      <span className="rc-badge rc-fail">✗ {r.finding}</span>
-                      <div className="rc-reason">{r.reason}</div>
-                      <Cite rule={r.rule} source={r.source} />
-                    </td>
+        <Section title="3 · Options rejected and why">
+          {data.rejected.length ? (
+            <div className="rc-scroll">
+              <table className="rc-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>{isGpc ? 'Vendor' : 'Store'}</th>
+                    {showRejectPrice ? <th className="rc-num">Price</th> : null}
+                    <th>Why not</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {data.rejected.map((r) => (
+                    <tr key={r.id}>
+                      <td><div className="rc-item">{r.description}</div></td>
+                      <td>{r.vendor}</td>
+                      {showRejectPrice ? <td className="rc-num">{r.price !== undefined ? usd(r.price) : '—'}</td> : null}
+                      <td>
+                        <span className="rc-badge rc-fail">✗ {r.finding}</span>
+                        <div className="rc-reason">{r.reason}</div>
+                        <Cite rule={r.rule} source={r.source} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="rc-note">No other options were considered.</p>
+          )}
         </Section>
 
         <Section title="4 · Fact-check of the approve card (Senso)">
-          <ul className="rc-facts">
-            {data.factChecks.map((f) => (
-              <li key={f.claim}>
-                <span className={`rc-badge rc-v-${f.verdict}`}>{VERDICT_LABEL[f.verdict]}</span>
-                <span>{f.claim}</span>
-                {f.source ? <Cite source={f.source} /> : <span className="rc-note">no source found; claim removed from card</span>}
-              </li>
-            ))}
-          </ul>
+          {data.factChecks.length ? (
+            <ul className="rc-facts">
+              {data.factChecks.map((f) => (
+                <li key={f.claim}>
+                  <span className={`rc-badge rc-v-${f.verdict}`}>{VERDICT_LABEL[f.verdict]}</span>
+                  <span>{f.claim}</span>
+                  {f.source ? (
+                    <Cite source={f.source} />
+                  ) : (
+                    <span className="rc-note">
+                      {f.verdict === 'not_checked' ? 'no Senso source yet, so the discount was not applied' : 'no source found; claim removed from card'}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="rc-note">No fact-check ran for this purchase.</p>
+          )}
         </Section>
 
         <Section title="5 · Approval and payment">
@@ -245,9 +290,11 @@ export function Receipt({ data }: { data: ReceiptData }) {
               <>
                 <div><b>Approved by:</b> {data.approval.by}</div>
                 <div><b>Approved at:</b> {timePT(data.approval.at)}</div>
-                <div className="rc-wide">
-                  <b>Cart mandate:</b> <code title={data.approval.mandateHash}>sha256:{short(data.approval.mandateHash)}</code>
-                </div>
+                {data.approval.mandateHash ? (
+                  <div className="rc-wide">
+                    <b>Cart mandate:</b> <code title={data.approval.mandateHash}>sha256:{short(data.approval.mandateHash)}</code>
+                  </div>
+                ) : null}
               </>
             ) : (
               <div><b>Approval:</b> pending</div>
@@ -261,19 +308,28 @@ export function Receipt({ data }: { data: ReceiptData }) {
           </div>
         </Section>
 
-        <Section title="6 · Audit log">
+        <Section title="6 · Every step, in order">
           <ol className="rc-log">
-            {[...data.events]
-              .sort((a, b) => a.seq - b.seq)
-              .map((e) => (
-                <li key={e.seq}>
-                  <span className="rc-seq">#{e.seq}</span>
-                  <span className="rc-time">{timePT(e.ts)}</span>
-                  <span className={`rc-actor rc-a-${e.actor}`}>{e.actor}</span>
-                  <span className="rc-sum">{e.summary}</span>
-                  {e.hash ? <code className="rc-hash" title={e.hash}>{short(e.hash)}</code> : null}
-                </li>
-              ))}
+            {data.events.map((e, i) => (
+              <li key={`${e.runId ?? ''}-${e.seq}-${i}`}>
+                <span className="rc-seq">#{i + 1}</span>
+                <span className="rc-time">{timePT(e.ts)}</span>
+                <span className={`rc-actor rc-a-${e.actor}`}>{e.actor}</span>
+                <span className="rc-sum">
+                  {e.summary}
+                  {e.sources?.length ? (
+                    <span className="rc-srcs">
+                      {e.sources.map((s) => (
+                        <a key={s.url} href={s.url} target="_blank" rel="noreferrer" title={s.title}>
+                          {s.title.length > 48 ? s.title.slice(0, 47) + '…' : s.title} ↗
+                        </a>
+                      ))}
+                    </span>
+                  ) : null}
+                </span>
+                {e.hash ? <code className="rc-hash" title={e.hash}>{short(e.hash)}</code> : <span />}
+              </li>
+            ))}
           </ol>
           <div className="rc-chain">
             <ChainLine status={chain} />
@@ -326,6 +382,10 @@ code{font-family:"SFMono-Regular",Menlo,Consolas,monospace;font-size:.85em;backg
 .rc-seq,.rc-time{color:var(--mute);font-variant-numeric:tabular-nums;font-size:15px}
 .rc-actor{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
 .rc-hash{font-size:12px;color:var(--mute)}
+.rc-label{margin-top:14px;font-size:14px;color:var(--mute);text-transform:uppercase;letter-spacing:.05em}
+.rc-item{font-weight:600}
+.rc-srcs{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:14px;margin-top:2px}
+.rc-srcs a{color:#1a4fa0}
 .rc-chain{margin-top:12px;padding:10px 12px;background:var(--wash);border:1px solid var(--line)}
 .rc-foot{margin-top:32px;padding-top:14px;border-top:1px dotted var(--line);text-align:center;color:var(--mute);font-size:14px}
 @media (max-width:720px){.rc-log li{grid-template-columns:40px 1fr;}.rc-actor,.rc-hash{grid-column:2}.rc-sum{grid-column:1/-1}}
