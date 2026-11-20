@@ -23,7 +23,6 @@ const datePT = (iso: string) =>
     day: 'numeric',
   })
 
-const short = (hash: string) => `${hash.slice(0, 10)}…${hash.slice(-6)}`
 
 function Cite({ rule, source }: { rule?: string | null; source?: Source }) {
   if (!rule && !source) return null
@@ -108,6 +107,7 @@ export function Receipt({ data }: { data: ReceiptData }) {
   }, [data.events])
 
   const total = data.cart.reduce((sum, l) => sum + l.qty * l.unitPrice, 0)
+  const listTotal = data.cart.reduce((sum, l) => sum + l.qty * (l.listPrice ?? l.unitPrice), 0)
   const isGpc = data.mode === 'gpc'
   const showScore = data.cart.some((l) => l.score !== undefined)
   const showChecks = data.cart.some((l) => l.checks.length > 0)
@@ -299,7 +299,7 @@ export function Receipt({ data }: { data: ReceiptData }) {
                 <div><b>Approved at:</b> {timePT(data.approval.at)}</div>
                 {data.approval.mandateHash ? (
                   <div className="rc-wide">
-                    <b>Cart mandate:</b> <code title={data.approval.mandateHash}>sha256:{short(data.approval.mandateHash)}</code>
+                    <b>Cart mandate:</b> <code className="rc-hash">sha256:{data.approval.mandateHash}</code>
                   </div>
                 ) : null}
               </>
@@ -316,6 +316,13 @@ export function Receipt({ data }: { data: ReceiptData }) {
         </Section>
 
         <Section title="6 · Every step, in order">
+          <div className="rc-chain">
+            <ChainLine status={chain} />
+          </div>
+          <details className="rc-details">
+            <summary>
+              Show all {data.events.length} steps{data.events.some((e) => e.hash) ? ' and their hashes' : ''}
+            </summary>
           <ol className="rc-log">
             {data.events.map((e, i) => (
               <li key={`${e.runId ?? ''}-${e.seq}-${i}`}>
@@ -334,13 +341,71 @@ export function Receipt({ data }: { data: ReceiptData }) {
                     </span>
                   ) : null}
                 </span>
-                {e.hash ? <code className="rc-hash" title={e.hash}>{short(e.hash)}</code> : <span />}
+                {e.hash ? (
+                  <span className="rc-hashrow">
+                    <span className="rc-hashlabel">sha256</span>
+                    <code className="rc-hash">{e.hash}</code>
+                  </span>
+                ) : null}
               </li>
             ))}
           </ol>
-          <div className="rc-chain">
-            <ChainLine status={chain} />
-          </div>
+          </details>
+        </Section>
+
+        <Section title="Summary">
+          <dl className="rc-summary">
+            <div>
+              <dt>Items</dt>
+              <dd>{data.cart.reduce((n, l) => n + l.qty, 0)} ({data.cart.map((l) => l.vendor).filter((v, i, a) => a.indexOf(v) === i).join(', ')})</dd>
+            </div>
+            {listTotal > total ? (
+              <>
+                <div>
+                  <dt>Before discounts</dt>
+                  <dd>{usd(listTotal)}</dd>
+                </div>
+                <div>
+                  <dt>Military discount saved</dt>
+                  <dd className="rc-ok">−{usd(listTotal - total)}</dd>
+                </div>
+              </>
+            ) : (
+              <div>
+                <dt>Military discount saved</dt>
+                <dd>$0.00 (none verified)</dd>
+              </div>
+            )}
+            <div className="rc-sum-total">
+              <dt>Total charged</dt>
+              <dd>{data.order ? usd(data.order.amountCents / 100) : `${usd(total)} (not charged yet)`}</dd>
+            </div>
+            {data.budget !== undefined ? (
+              <div>
+                <dt>Budget left</dt>
+                <dd className={total <= data.budget ? 'rc-ok' : 'rc-bad'}>{usd(data.budget - total)} of {usd(data.budget)}</dd>
+              </div>
+            ) : null}
+            <div>
+              <dt>Options rejected</dt>
+              <dd>{data.rejected.length}</dd>
+            </div>
+            <div>
+              <dt>Approval</dt>
+              <dd>{data.approval ? `${data.approval.by}, ${timePT(data.approval.at)}` : 'pending'}</dd>
+            </div>
+            <div>
+              <dt>Payment</dt>
+              <dd>{data.order ? `${data.order.status} · ${data.order.paymentId}` : 'none'}</dd>
+            </div>
+            <div>
+              <dt>Steps logged</dt>
+              <dd>
+                {data.events.length} ·{' '}
+                {chain.state === 'verified' ? <span className="rc-ok">chain verified</span> : chain.state === 'broken' ? <span className="rc-bad">chain broken</span> : 'not verifiable'}
+              </dd>
+            </div>
+          </dl>
         </Section>
 
         <footer className="rc-foot">
@@ -388,7 +453,16 @@ code{font-family:"SFMono-Regular",Menlo,Consolas,monospace;font-size:.85em;backg
 .rc-log li{display:grid;grid-template-columns:44px 130px 96px 1fr auto;gap:10px;padding:8px 0;border-bottom:1px dotted var(--line);align-items:baseline}
 .rc-seq,.rc-time{color:var(--mute);font-variant-numeric:tabular-nums;font-size:15px}
 .rc-actor{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
-.rc-hash{font-size:12px;color:var(--mute)}
+.rc-hash{font-size:12px;color:var(--mute);word-break:break-all;overflow-wrap:anywhere}
+.rc-hashrow{grid-column:3/-1;display:flex;gap:8px;align-items:baseline;min-width:0}
+.rc-hashlabel{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mute)}
+.rc-details{margin-top:12px}
+.rc-details>summary{cursor:pointer;font-weight:700;color:#1a4fa0;padding:8px 0;list-style-position:inside}
+.rc-details>summary:focus-visible{outline:2px solid #1a4fa0;outline-offset:2px}
+.rc-summary{display:grid;gap:0;margin:0;max-width:640px;border:2px solid var(--ink);padding:6px 16px}
+.rc-summary>div{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dotted var(--line)}
+.rc-summary dt{color:var(--mute)} .rc-summary dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.rc-sum-total dt,.rc-sum-total dd{font-weight:700;color:var(--ink);font-size:20px}
 .rc-label{margin-top:14px;font-size:14px;color:var(--mute);text-transform:uppercase;letter-spacing:.05em}
 .rc-item{font-weight:600}
 .rc-srcs{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:14px;margin-top:2px}
