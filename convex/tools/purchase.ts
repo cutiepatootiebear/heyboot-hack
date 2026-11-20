@@ -35,6 +35,12 @@ export const yesFastPath = internalAction({
           await audit.log("outbound", null, { reply });
           return { reply, status: "refused" };
         }
+        // A second YES while the first one is still charging (proposal already approved).
+        if (approval.lastStatus === "approved") {
+          const reply = "Already done. No second charge.";
+          await audit.log("outbound", null, { reply });
+          return { reply, status: "refused" };
+        }
       }
       const reply =
         approval.reason === "expired"
@@ -67,8 +73,8 @@ export const yesFastPath = internalAction({
         startSeq: audit.current(),
         startHash: audit.lastHash(),
       });
+      // The agent loop already logged this run's outbound row; logging again here would fork the hash chain.
       const reply = `Heads up: ${out.map((o) => `${o.item} at ${o.store}`).join(", ")} just went out of stock, so I didn't charge you.\n\n${swap.reply}`;
-      await audit.log("outbound", null, { reply });
       return { reply, status: "done" };
     }
 
