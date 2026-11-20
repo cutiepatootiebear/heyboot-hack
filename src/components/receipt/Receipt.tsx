@@ -121,12 +121,7 @@ export function Receipt({ data }: { data: ReceiptData }) {
   return (
     <div className="rc-page">
       <style>{CSS}</style>
-      {data.testMode ? (
-        <div className="rc-test" role="note">
-          TEST MODE · DEMO DATA · SIMULATED PURCHASE. No real money moved.
-        </div>
-      ) : null}
-
+      {/* Test mode is announced at the start of the live demo, so no top banner here. */}
       <article className="rc-doc">
         <header className="rc-head">
           <h1>{isGpc ? 'Procurement Audit Trail' : 'Hey Boot Receipt'}</h1>
