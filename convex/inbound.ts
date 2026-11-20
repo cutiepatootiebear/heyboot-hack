@@ -125,3 +125,25 @@ export const seedDemoUser = internalMutation({
     return { seeded, userId: user._id };
   },
 });
+
+// Reset a demo user for a fresh run: archive the current record (renamed, nothing deleted) so the
+// next message from this handle creates a new user with only the demo seed (new Cognee dataset too).
+// Run: npx convex run inbound:resetDemoUser '{"handle":"+1..."}'
+export const resetDemoUser = internalMutation({
+  args: { handle: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_handle", (q) => q.eq("handle", args.handle))
+      .unique();
+    if (!user) return { archived: null };
+    const pending = await ctx.db
+      .query("proposals")
+      .withIndex("by_userId_and_status", (q) => q.eq("userId", user._id).eq("status", "pending"))
+      .take(20);
+    for (const p of pending) await ctx.db.patch(p._id, { status: "superseded" });
+    const archivedHandle = `${args.handle}#archived-${Date.now()}`;
+    await ctx.db.patch(user._id, { handle: archivedHandle });
+    return { archived: user._id, archivedHandle, supersededProposals: pending.length };
+  },
+});
