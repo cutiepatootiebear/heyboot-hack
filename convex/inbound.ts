@@ -99,3 +99,29 @@ export const history = internalQuery({
     return recent.reverse().map((m) => ({ direction: m.direction, body: m.body }));
   },
 });
+
+// Apply the demo seed (shoe size + Brooks) to an existing user, e.g. a demo phone that texted
+// before DEMO_PHONE_NUMBERS was set. Skips keys the user already has; copies to Cognee too.
+// Run: npx convex run inbound:seedDemoUser '{"handle":"+1..."}'
+export const seedDemoUser = internalMutation({
+  args: { handle: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_handle", (q) => q.eq("handle", args.handle))
+      .unique();
+    if (!user) return { seeded: 0, error: "no user with that handle" };
+    let seeded = 0;
+    for (const m of DEMO_MEMORIES) {
+      const existing = await ctx.db
+        .query("memories")
+        .withIndex("by_userId_and_key", (q) => q.eq("userId", user._id).eq("key", m.key))
+        .unique();
+      if (existing) continue;
+      await ctx.db.insert("memories", { userId: user._id, key: m.key, value: m.value, source: "seed" });
+      seeded += 1;
+    }
+    if (seeded) await ctx.scheduler.runAfter(0, internal.tools.memorySync.seedCognee, { userId: user._id });
+    return { seeded, userId: user._id };
+  },
+});
