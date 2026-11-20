@@ -17,6 +17,19 @@ export const recallMemories = internalQuery({
   },
 });
 
+export const saveMemory = internalMutation({
+  args: { userId: v.id("users"), key: v.string(), value: v.string() },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("memories")
+      .withIndex("by_userId_and_key", (q) => q.eq("userId", args.userId).eq("key", args.key))
+      .unique();
+    if (existing) await ctx.db.patch("memories", existing._id, { value: args.value, source: "agent" });
+    else await ctx.db.insert("memories", { userId: args.userId, key: args.key, value: args.value, source: "agent" });
+    return null;
+  },
+});
+
 export const createProposal = internalMutation({
   args: {
     userId: v.id("users"),
@@ -33,7 +46,7 @@ export const createProposal = internalMutation({
       .query("proposals")
       .withIndex("by_userId_and_status", (q) => q.eq("userId", args.userId).eq("status", "pending"))
       .take(20);
-    for (const p of pending) await ctx.db.patch(p._id, { status: "superseded" });
+    for (const p of pending) await ctx.db.patch("proposals", p._id, { status: "superseded" });
     return await ctx.db.insert("proposals", { ...args, status: "pending", approvedAt: null });
   },
 });
@@ -68,10 +81,10 @@ export const approvePending = internalMutation({
       return { ok: false as const, reason: "wrong_user" as const, lastProposalId: null, lastStatus: null };
     }
     if (ageMs > APPROVAL_WINDOW_MS) {
-      await ctx.db.patch(pending._id, { status: "superseded" });
+      await ctx.db.patch("proposals", pending._id, { status: "superseded" });
       return { ok: false as const, reason: "expired" as const, lastProposalId: pending._id, lastStatus: "superseded" as const, ageMs };
     }
-    await ctx.db.patch(pending._id, { status: "approved", approvedAt: now });
+    await ctx.db.patch("proposals", pending._id, { status: "approved", approvedAt: now });
     return { ok: true as const, proposal: { ...pending, status: "approved" as const, approvedAt: now }, ageMs };
   },
 });
@@ -82,7 +95,7 @@ export const setProposalStatus = internalMutation({
     status: v.union(v.literal("purchased"), v.literal("superseded"), v.literal("failed")),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.proposalId, { status: args.status });
+    await ctx.db.patch("proposals", args.proposalId, { status: args.status });
     return null;
   },
 });
@@ -106,7 +119,7 @@ export const claimOrder = internalMutation({
       stripePaymentIntentId: null,
       error: null,
     });
-    return { claimed: true as const, order: (await ctx.db.get(orderId))!, idempotencyKey };
+    return { claimed: true as const, order: (await ctx.db.get("orders", orderId))!, idempotencyKey };
   },
 });
 
@@ -119,7 +132,7 @@ export const settleOrder = internalMutation({
   },
   handler: async (ctx, args) => {
     const { orderId, ...fields } = args;
-    await ctx.db.patch(orderId, fields);
+    await ctx.db.patch("orders", orderId, fields);
     return null;
   },
 });

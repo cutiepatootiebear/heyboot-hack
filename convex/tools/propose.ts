@@ -1,15 +1,16 @@
 // propose_purchase: the model passes (item, store, qty); every price, discount and URL
 // comes from the catalog row, never from the model. Builds the approve card text.
+import { internal } from "../_generated/api";
+import { getCatalogRow } from "./catalog";
+import { lookupContext } from "./context";
 import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { internal } from "../_generated/api";
 import type { Auditor } from "../lib/audit";
-import { getCatalogRow } from "./catalog";
 
 export type ProposeInput = {
-  items: { item: string; store: string; qty: number }[];
+  items: Array<{ item: string; store: string; qty: number }>;
   budget: number;
-  rejected: { item: string; store: string; reason: string }[];
+  rejected: Array<{ item: string; store: string; reason: string }>;
 };
 
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -31,8 +32,19 @@ export function checkedAt(iso: string): string {
 
 // Discount verification will come from Senso (Keanu's wrapper). Until then no catalog
 // discount counts as verified, so none is applied and the card says "not found".
-async function verifiedDiscount(_store: string, _pct: number): Promise<{ pct: number; sourceUrl: string | null }> {
-  return { pct: 0, sourceUrl: null };
+async function verifiedDiscount(
+  store: string,
+  pct: number,
+  audit: Auditor,
+): Promise<{ pct: number; sourceUrl: string | null }> {
+  if (pct <= 0) return { pct: 0, sourceUrl: null };
+  const context = await lookupContext(`Does ${store} offer a military discount, and what percentage?`, audit);
+  if (!context.answer || !context.sources.length) return { pct: 0, sourceUrl: null };
+  const percentages = context.answer.match(/\d+(?:\.\d+)?\s*%/g);
+  if (!percentages?.length) return { pct: 0, sourceUrl: null };
+  const verified = Math.max(...percentages.map((s) => parseFloat(s)));
+  if (!Number.isFinite(verified) || verified <= 0) return { pct: 0, sourceUrl: null };
+  return { pct: Math.min(pct, verified), sourceUrl: context.sources[0].url };
 }
 
 export async function proposePurchase(
@@ -49,7 +61,7 @@ export async function proposePurchase(
     const row = await getCatalogRow(it.item, it.store);
     if (!row) return { ok: false, error: `Not in catalog: "${it.item}" at ${it.store}. Use exact item and store strings from search_catalog.` };
     if (!row.inStock) return { ok: false, error: `Out of stock: "${it.item}" at ${it.store}. Pick another option.` };
-    const disc = await verifiedDiscount(row.store, row.milDiscountPct);
+    const disc = await verifiedDiscount(row.store, row.milDiscountPct, audit);
     const finalPrice = round2(row.price * (1 - disc.pct / 100));
     items.push({
       item: row.item,

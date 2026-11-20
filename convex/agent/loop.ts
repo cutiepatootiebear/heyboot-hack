@@ -4,19 +4,24 @@
 // (Ben owns convex/agent/; written on main for the 1:30 milestone.)
 import Anthropic from "@anthropic-ai/sdk";
 import { v } from "convex/values";
-import { internalAction, type ActionCtx } from "../_generated/server";
+import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
 import { createAuditor } from "../lib/audit";
 import { searchCatalog } from "../tools/catalog";
-import { proposePurchase, checkedAt, type ProposeInput } from "../tools/propose";
-import { SYSTEM_PROMPT } from "./prompt";
+import { checkedAt, proposePurchase } from "../tools/propose";
 import { cogneeConfigured, recall as cogneeRecall } from "../integrations/cognee";
+import { CRISIS_REPLY, classify } from "../crisis";
+import { writeMemory } from "../tools/memory";
+import { lookupContext } from "../tools/context";
+import { SYSTEM_PROMPT } from "./prompt";
+import type { ProposeInput } from "../tools/propose";
+import type { ActionCtx } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
 
 const MODEL = "claude-sonnet-5-5";
 const MAX_TURNS = 8;
 
-const TOOLS: Anthropic.Beta.BetaTool[] = [
+const TOOLS: Array<Anthropic.Beta.BetaTool> = [
   {
     name: "recall_memory",
     description:
@@ -81,6 +86,69 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: "save_memory",
+    description:
+      "Remember a durable fact about this user (a size, a brand preference, a budget). Call when the user states a lasting preference or corrects an old one. Do not store secrets or payment details.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        key: { type: "string", description: "Short snake_case name, e.g. 'shoe_size'." },
+        value: { type: "string", description: "The fact to remember." },
+      },
+      required: ["key", "value"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "lookup_context",
+    description:
+      "Look up trusted context, such as a store's military discount policy, with a short question. Returns an answer and the source pages it came from. If it returns 'not found' or no sources, say you couldn't verify it and do not apply a discount.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: { question: { type: "string" } },
+      required: ["question"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "purchase",
+    description:
+      "Check for a purchase the user already approved. Never call this on your own: a charge only happens after the user replies YES. If there is no approved purchase, send the card and ask the user to reply YES.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: { confirmed: { type: "boolean" } },
+      required: ["confirmed"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "escalate_crisis",
+    description:
+      "Use only when the user's message shows self-harm or an immediate mental-health crisis, or when they ask for crisis help. Returns the crisis-line resources to send them. Never use for ordinary shopping questions.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: { reason: { type: "string", description: "Why this is a crisis message." } },
+      required: ["reason"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "refuse",
+    description:
+      "Decline a request outside what Hey Boot does, such as asking for credentials, financial advice, or help with anything other than gear shopping. Give a short reason.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: { reason: { type: "string" } },
+      required: ["reason"],
+      additionalProperties: false,
+    },
+  },
 ];
 
 export const run = internalAction({
@@ -94,12 +162,19 @@ export const run = internalAction({
     const audit = createAuditor(args.runId, args.userId, args.startSeq ?? 0);
     if (!args.startSeq) await audit.log("inbound", { text: args.text, route: "agent" }, null);
 
+    const crisis = await classify(args.text);
+    await audit.log("crisis", { text: args.text }, { crisis: crisis.crisis, backend: crisis.backend, reason: crisis.reason });
+    if (crisis.crisis) {
+      await audit.log("outbound", null, { reply: CRISIS_REPLY, crisis: true });
+      return { reply: CRISIS_REPLY, status: "refused" };
+    }
+
     // Conversation so far (the current inbound message is already stored, so it's the last "in").
-    const past: { direction: "in" | "out"; body: string }[] = await ctx.runQuery(internal.inbound.history, {
+    const past: Array<{ direction: "in" | "out"; body: string }> = await ctx.runQuery(internal.inbound.history, {
       userId: args.userId,
       limit: 12,
     });
-    const messages: Anthropic.Beta.BetaMessageParam[] = [];
+    const messages: Array<Anthropic.Beta.BetaMessageParam> = [];
     for (const m of past) {
       const role = m.direction === "in" ? "user" : "assistant";
       const last = messages[messages.length - 1];
@@ -147,11 +222,20 @@ export const run = internalAction({
         return { reply, status: "done" };
       }
 
-      const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
+      const results: Array<Anthropic.Beta.BetaToolResultBlockParam> = [];
       for (const tu of toolUses) {
         const out = await runTool(ctx, args.userId, args.runId, tu.name, tu.input, audit);
         if (out.card) proposalCard = out.card;
         results.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(out.result), is_error: out.isError });
+        if (out.crisis) {
+          await audit.log("outbound", null, { reply: CRISIS_REPLY, crisis: true });
+          return { reply: CRISIS_REPLY, status: "refused" };
+        }
+        if (out.refuse) {
+          const reply = out.reply ?? "I can't help with that one. I can compare prices on gear you need before reporting.";
+          await audit.log("outbound", null, { reply });
+          return { reply, status: "refused" };
+        }
       }
       messages.push({ role: "user", content: results });
     }
@@ -162,7 +246,14 @@ export const run = internalAction({
   },
 });
 
-type ToolOut = { result: unknown; isError: boolean; card?: string };
+type ToolOut = {
+  result: unknown;
+  isError: boolean;
+  card?: string;
+  crisis?: boolean;
+  refuse?: boolean;
+  reply?: string;
+};
 
 async function runTool(
   ctx: ActionCtx,
@@ -223,6 +314,45 @@ async function runTool(
           isError: false,
           card: res.card,
         };
+      }
+      case "save_memory": {
+        const key = typeof input.key === "string" ? input.key.trim().slice(0, 64) : "";
+        const value = typeof input.value === "string" ? input.value.trim().slice(0, 500) : "";
+        if (!key || !value) {
+          const result = { error: "Both key and value are required." };
+          await audit.log("save_memory", input, result);
+          return { result, isError: true };
+        }
+        const result = await writeMemory(ctx, userId, key, value, audit);
+        return { result, isError: false };
+      }
+      case "lookup_context": {
+        const question = typeof input.question === "string" ? input.question.trim().slice(0, 300) : "";
+        if (!question) {
+          const result = { error: "A question is required." };
+          await audit.log("lookup_context", input, result);
+          return { result, isError: true };
+        }
+        const result = await lookupContext(question, audit);
+        return { result, isError: false };
+      }
+      case "purchase": {
+        const result = {
+          ok: false,
+          error: "A charge only happens after the user replies YES to the card I sent. Send the card and ask them to reply YES.",
+        };
+        await audit.log("purchase", input, result);
+        return { result, isError: false };
+      }
+      case "escalate_crisis": {
+        await audit.log("escalate_crisis", input, { reply: CRISIS_REPLY });
+        return { result: { reply: CRISIS_REPLY }, isError: false, card: CRISIS_REPLY, crisis: true };
+      }
+      case "refuse": {
+        const reason = typeof input.reason === "string" && input.reason.trim() ? input.reason.trim() : "";
+        const reply = `I can't help with that. I can compare prices on gear you need before reporting.${reason ? ` ${reason}` : ""}`;
+        await audit.log("refuse", input, { reply });
+        return { result: { reply }, isError: false, refuse: true, reply };
       }
       default:
         await audit.log("unknown_tool", { name, input }, null);
