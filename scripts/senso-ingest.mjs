@@ -48,7 +48,8 @@ process.stderr.write(`ingesting ${title} (${text.length} chars) as ${doc.id} `);
 let status = doc.processing_status;
 for (let i = 0; i < 90 && status !== "complete" && status !== "failed"; i++) {
   await new Promise((r) => setTimeout(r, 2000));
-  status = (await api("GET", `/org/content/${doc.id}`)).processing_status;
+  const node = await api("GET", `/org/kb/nodes/${doc.kb_node_id}`);
+  status = node?.content?.processing_status ?? node?.processing_status ?? status;
   process.stderr.write(".");
 }
 process.stderr.write(` ${status}\n`);

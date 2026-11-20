@@ -58,6 +58,16 @@ export const SOURCES: Record<string, { title: string; url: string; retrievedAt: 
     url: "https://gearrack.com/policies/refund-policy",
     retrievedAt: "2026-11-20",
   },
+  "bfbd0b81-54eb-46cc-9d3c-31e4aaf238ba": {
+    title: "Holabird Sports Return and Refund Policy",
+    url: "https://www.holabirdsports.com/policies/refund-policy",
+    retrievedAt: "2026-11-20",
+  },
+  "6f158efb-f226-4107-b74f-0df6d52a1299": {
+    title: "Holabird Sports Shipping Policy",
+    url: "https://www.holabirdsports.com/pages/shipping",
+    retrievedAt: "2026-11-20",
+  },
   "f2341539-d2aa-4499-8654-aa2fef320923": {
     title: "HiVis365 Refund Policy",
     url: "https://www.hivis365.com/policies/refund-policy",
