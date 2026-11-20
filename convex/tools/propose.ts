@@ -15,6 +15,7 @@ export type ProposeInput = {
 };
 
 const money = (n: number) => `$${n.toFixed(2)}`;
+const possessive = (name: string) => (/s$/i.test(name) ? `${name}'` : `${name}'s`);
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export function checkedAt(iso: string): string {
@@ -116,7 +117,7 @@ export async function proposePurchase(
     const qty = i.qty > 1 ? `${i.qty} × ` : "";
     let line = `• ${qty}${i.item}: ${money(i.finalPrice)} at ${i.store} (price checked ${checkedAt(i.capturedAt)})\n  ${i.url}`;
     if (i.milDiscountPct > 0 && i.discountSourceUrl)
-      line += `\n  Includes ${i.milDiscountPct}% military discount, verified on ${i.store}'s own page: ${i.discountSourceUrl}\n  (list price ${money(i.price)}; you verify military status yourself at the store, e.g. VerifyPass)`;
+      line += `\n  Includes ${i.milDiscountPct}% military discount, verified on ${possessive(i.store)} own page: ${i.discountSourceUrl}\n  (list price ${money(i.price)}; you verify military status yourself at the store, e.g. VerifyPass)`;
     else if (i.catalogMilDiscountPct > 0) line += `\n  Military discount: not found, not applied`;
     return line;
   });
@@ -134,7 +135,9 @@ export async function proposePurchase(
     budget: input.budget,
     card,
   });
-  const factChecks = [...checks.values()].map((c) => ({
+  // Show a claim only when the card makes one (a catalog discount) or Senso found a discount
+  // the catalog lacks. Stores with no discount claimed and none found aren't listed.
+  const factChecks = [...checks.values()].filter((c) => c.catalogPct > 0 || c.verdict === "conflict").map((c) => ({
     claim:
       c.catalogPct > 0
         ? `${c.store} gives military customers ${c.catalogPct}% off`
