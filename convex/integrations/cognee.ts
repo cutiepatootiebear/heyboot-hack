@@ -88,6 +88,7 @@ export async function recall(userId: string, query: string): Promise<CogneeMemor
     if (text.trim()) answers.push(text.trim());
   }
   const now = new Date().toISOString();
-  const useful = answers.filter((a) => !/^(i don't know|no (relevant )?(information|context)|none)\b/i.test(a));
+  const NON_ANSWER = /(could ?n[o']t find|can ?n[o']t find|unable to find|no (relevant )?(answer|information|context|memory|data)|not (found|available|mentioned)|i don'?t (know|have)|there is no (information|mention))/i;
+  const useful = answers.filter((a) => !NON_ANSWER.test(a));
   return useful.slice(0, 5).map((value, i) => ({ key: i === 0 ? "cognee_answer" : `cognee_answer_${i + 1}`, value, savedAt: now }));
 }
