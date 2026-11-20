@@ -157,9 +157,10 @@ export const run = internalAction({
     runId: v.id("runs"),
     text: v.string(),
     startSeq: v.optional(v.number()),
+    startHash: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ reply: string; status: "done" | "refused" | "error" }> => {
-    const audit = createAuditor(args.runId, args.userId, args.startSeq ?? 0);
+    const audit = createAuditor(args.runId, args.userId, args.startSeq ?? 0, args.startHash);
     if (!args.startSeq) await audit.log("inbound", { text: args.text, route: "agent" }, null);
 
     const crisis = await classify(args.text);
@@ -211,14 +212,16 @@ export const run = internalAction({
       const toolUses = response.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
 
       if (response.stop_reason !== "tool_use" || toolUses.length === 0) {
-        const text = response.content
+        // Only the last text block is the message for the user; earlier blocks in the same
+        // response can be the model's working notes ("Missing sizes. Ask once.").
+        const textBlocks = response.content
           .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
-          .map((b) => b.text)
-          .join("\n")
-          .trim();
+          .map((b) => b.text.trim())
+          .filter(Boolean);
+        const text = textBlocks[textBlocks.length - 1] ?? "";
         let reply = text || "Sorry, I didn't get that. What gear do you need, and what's your budget?";
         if (proposalCard && !reply.includes("Reply YES")) reply = `${reply}\n\n${proposalCard}`.trim();
-        await audit.log("outbound", null, { reply, stop_reason: response.stop_reason });
+        await audit.log("outbound", null, { reply, stop_reason: response.stop_reason, textBlocks: textBlocks.length, droppedText: textBlocks.slice(0, -1) });
         return { reply, status: "done" };
       }
 

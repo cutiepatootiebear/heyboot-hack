@@ -33,7 +33,8 @@ export const receive = internalMutation({
     if (!user) {
       const userId = await ctx.db.insert("users", { handle: args.handle, displayName: args.handle });
       // Demo users get the "seeded earlier" memories from the spec's Gear Run.
-      if (args.handle.startsWith("demo")) {
+      const demoPhones = (process.env.DEMO_PHONE_NUMBERS ?? "").split(",").map((n) => n.trim()).filter(Boolean);
+      if (args.handle.startsWith("demo") || demoPhones.includes(args.handle)) {
         for (const m of DEMO_MEMORIES) {
           await ctx.db.insert("memories", { userId, key: m.key, value: m.value, source: "seed" });
         }

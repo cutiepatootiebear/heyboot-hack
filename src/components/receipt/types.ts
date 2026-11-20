@@ -61,7 +61,9 @@ export type AuditEvent = {
   actor: 'user' | 'agent' | 'rules' | 'senso' | 'approver' | 'payment'
   summary: string
   sources?: Source[]
-  hash?: string // sha256(prevHash|seq|ts|step|summary), hex, chained in display order
+  hash?: string // sha256(prevHash + "|" + canonical), hex, chained per run
+  prevHash?: string // previous row's hash in the same run (64 zeros for the first)
+  canonical?: string // exact JSON text that was hashed (the stored record)
 }
 
 export type ReceiptData = {
