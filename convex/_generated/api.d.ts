@@ -10,9 +10,11 @@
 
 import type * as agent_loop from "../agent/loop.js";
 import type * as agent_prompt from "../agent/prompt.js";
+import type * as crisis from "../crisis.js";
 import type * as http from "../http.js";
 import type * as inbound from "../inbound.js";
 import type * as integrations_cognee from "../integrations/cognee.js";
+import type * as integrations_senso from "../integrations/senso.js";
 import type * as integrations_stripe from "../integrations/stripe.js";
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_singlestore from "../lib/singlestore.js";
@@ -20,6 +22,7 @@ import type * as myFunctions from "../myFunctions.js";
 import type * as receipt from "../receipt.js";
 import type * as scoring_scoring from "../scoring/scoring.js";
 import type * as tools_catalog from "../tools/catalog.js";
+import type * as tools_context from "../tools/context.js";
 import type * as tools_data from "../tools/data.js";
 import type * as tools_memorySync from "../tools/memorySync.js";
 import type * as tools_propose from "../tools/propose.js";
@@ -34,9 +37,11 @@ import type {
 declare const fullApi: ApiFromModules<{
   "agent/loop": typeof agent_loop;
   "agent/prompt": typeof agent_prompt;
+  crisis: typeof crisis;
   http: typeof http;
   inbound: typeof inbound;
   "integrations/cognee": typeof integrations_cognee;
+  "integrations/senso": typeof integrations_senso;
   "integrations/stripe": typeof integrations_stripe;
   "lib/audit": typeof lib_audit;
   "lib/singlestore": typeof lib_singlestore;
@@ -44,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   receipt: typeof receipt;
   "scoring/scoring": typeof scoring_scoring;
   "tools/catalog": typeof tools_catalog;
+  "tools/context": typeof tools_context;
   "tools/data": typeof tools_data;
   "tools/memorySync": typeof tools_memorySync;
   "tools/propose": typeof tools_propose;
