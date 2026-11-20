@@ -19,3 +19,23 @@ dist/
 # misc
 .DS_Store
 *.log
+
+# from convex tanstack-start template
+
+.cache
+
+/build/
+/api/
+/server/build
+/public/build
+/dist/
+/dist-ssr/
+
+# Sentry Config File
+.env.sentry-build-plugin
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+app.config.timestamp_*.js
