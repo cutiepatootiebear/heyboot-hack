@@ -1,0 +1,21 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# private planning doc (names employers; never publish)
+HACK_SPEC_heyboot.md
+
+# deps / build
+node_modules/
+.output/
+.vinxi/
+.nitro/
+.tanstack/
+dist/
+.vercel/
+.convex/
+
+# misc
+.DS_Store
+*.log
