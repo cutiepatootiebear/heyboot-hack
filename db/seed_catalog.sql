@@ -1,4 +1,4 @@
--- Generated from catalog.csv on 2026-11-20T21:07:22.832Z (13 rows). Demo data.
+-- Generated from catalog.csv on 2026-11-20T21:40:42.268Z (24 rows). Demo data.
 REPLACE INTO catalog (item, store, price, mil_discount_pct, url, captured_at, in_stock) VALUES
   ('Brooks Ghost 18, Men''s 10.5 Wide (2E), Black/Grey/White', 'Running Warehouse', 149.95, 0.00, 'https://www.runningwarehouse.com/Brooks_Ghost_18/descpage-B18GHM1.html', '2026-11-20 21:07:22.000', TRUE),
   ('Brooks Ghost 18, Men''s 10.5 Wide (2E), Black/Grey/White', 'Sports Basement', 150.00, 0.00, 'https://www.sportsbasement.com/products/ghost-18-2e', '2026-11-20 21:07:22.000', TRUE),
@@ -12,4 +12,15 @@ REPLACE INTO catalog (item, store, price, mil_discount_pct, url, captured_at, in
   ('HOKA Clifton 11, Men''s 10.5 Wide (EE), Antique Olive/River Rock Grey', 'Holabird Sports', 154.95, 10.00, 'https://www.holabirdsports.com/products/hoka-clifton-11-mens-antique-olive-river-rock-grey', '2026-11-20 21:07:22.000', TRUE),
   ('Master Lock 1-7/8" Black Dial Combination Padlock', 'Target', 6.99, 0.00, 'https://www.target.com/p/master-lock-1-7-8-black-dial-combination-padlock/-/A-14439947', '2026-11-20 21:07:22.000', TRUE),
   ('Master Lock Combination Brass Lock, Resettable, 0.5" Shackle', 'Target', 8.61, 0.00, 'https://www.target.com/p/master-lock-combination-comb-brass-lock/-/A-14784629', '2026-11-20 21:07:22.000', TRUE),
-  ('Master Lock Set-Your-Own Combination Padlock, Multicolor', 'Target', 8.19, 0.00, 'https://www.target.com/p/master-lock-lock-reset-combination/-/A-14790379', '2026-11-20 21:07:22.000', TRUE);
+  ('Master Lock Set-Your-Own Combination Padlock, Multicolor', 'Target', 8.19, 0.00, 'https://www.target.com/p/master-lock-lock-reset-combination/-/A-14790379', '2026-11-20 21:07:22.000', TRUE),
+  ('USMC MCCUU Woodland MARPAT Blouse (cammies), Medium-Regular, Used', 'Gearrack', 35.00, 0.00, 'https://gearrack.com/products/usmc-woodland-marpat-mccuu-blouse', '2026-11-20 21:40:42.000', TRUE),
+  ('USMC MCCUU Woodland MARPAT Blouse (cammies), Medium-Regular, Used (Faded)', 'Gearrack', 25.00, 0.00, 'https://gearrack.com/products/usmc-woodland-marpat-mccuu-blouse', '2026-11-20 21:40:42.000', TRUE),
+  ('USMC MCCUU Woodland MARPAT Blouse (cammies), Medium-Regular, New', 'Gearrack', 55.00, 0.00, 'https://gearrack.com/products/usmc-woodland-marpat-mccuu-blouse', '2026-11-20 21:40:42.000', FALSE),
+  ('USMC MCCUU Woodland MARPAT Trousers (cammies), Medium-Regular, Used', 'Gearrack', 45.00, 0.00, 'https://gearrack.com/products/usmc-woodland-marpat-mccuu-trousers-1', '2026-11-20 21:40:42.000', TRUE),
+  ('USMC MCCUU Woodland MARPAT Trousers (cammies), Medium-Regular, New', 'Gearrack', 65.00, 0.00, 'https://gearrack.com/products/usmc-woodland-marpat-mccuu-trousers-1', '2026-11-20 21:40:42.000', FALSE),
+  ('USMC MCCUU Desert MARPAT Blouse (cammies), Medium-Regular, New', 'Gearrack', 40.00, 0.00, 'https://gearrack.com/products/usmc-desert-marpat-mccuu-blouse', '2026-11-20 21:40:42.000', TRUE),
+  ('USMC 8-Point Woodland MARPAT Utility Cover, Medium, New', 'Gearrack', 20.00, 0.00, 'https://gearrack.com/products/usmc-woodland-marpat-utility-cover', '2026-11-20 21:40:42.000', TRUE),
+  ('USMC 8-Point Woodland MARPAT Utility Cover, Medium, Used', 'Gearrack', 10.00, 0.00, 'https://gearrack.com/products/usmc-woodland-marpat-utility-cover', '2026-11-20 21:40:42.000', TRUE),
+  ('Coyote Brown T-Shirt / Undershirt (AR 670-1), Medium', 'USAMM', 16.99, 0.00, 'https://www.usamm.com/products/ar-670-1-coyote-t-shirt', '2026-11-20 21:40:42.000', TRUE),
+  ('Belleville 590 USMC Hot Weather Combat Boots (EGA), Coyote, Men''s 10.5 Wide', 'Hivis365', 189.99, 0.00, 'https://hivis365.com/products/belleville-590-usmc-hot-weather-combat-boot-ega', '2026-11-20 21:40:42.000', TRUE),
+  ('Belleville 590 USMC Hot Weather Combat Boots, Men''s 10.5 Wide', 'US Elite Gear', 214.00, 0.00, 'https://www.us-elitegear.com/products/belleville-590-usmc-hot-weather-combat-boot', '2026-11-20 21:40:42.000', TRUE);

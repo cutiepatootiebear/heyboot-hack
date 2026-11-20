@@ -13,7 +13,13 @@ export const recallMemories = internalQuery({
       .query("memories")
       .withIndex("by_userId_and_key", (q) => q.eq("userId", args.userId))
       .take(50);
-    return rows.map((m) => ({ key: m.key, value: m.value, source: "convex" as const, savedAt: new Date(m._creationTime).toISOString() }));
+    return rows.map((m) => ({
+      key: m.key,
+      value: m.value,
+      source: "convex" as const,
+      origin: m.source,
+      savedAt: new Date(m._creationTime).toISOString(),
+    }));
   },
 });
 
@@ -24,9 +30,11 @@ export const saveMemory = internalMutation({
       .query("memories")
       .withIndex("by_userId_and_key", (q) => q.eq("userId", args.userId).eq("key", args.key))
       .unique();
-    if (existing) await ctx.db.patch("memories", existing._id, { value: args.value, source: "agent" });
-    else await ctx.db.insert("memories", { userId: args.userId, key: args.key, value: args.value, source: "agent" });
-    return null;
+    if (existing) {
+      await ctx.db.patch(existing._id, { value: args.value, source: "agent" });
+      return existing._id;
+    }
+    return await ctx.db.insert("memories", { userId: args.userId, key: args.key, value: args.value, source: "agent" });
   },
 });
 

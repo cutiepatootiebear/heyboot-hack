@@ -1,0 +1,7 @@
+item,store,price,mil_discount_pct,url,captured_at,in_stock,mandatory_source,vendor_banned_889,berry_covered,country_of_origin,spec_tags
+TEST Cold-weather gloves x40,AbilityOne Base Supply Center,1120,0,https://example.test/a1-gloves,2026-11-20T12:00:00-08:00,true,AbilityOne,false,true,US,cold-weather;insulated
+TEST Insulated work gloves x40,Commercial Vendor A,640,0,https://example.test/vendor-a,2026-11-20T12:00:00-08:00,true,,false,true,US,cold-weather
+TEST Winter gloves x40,Commercial Vendor B,520,0,https://example.test/vendor-b,2026-11-20T12:00:00-08:00,true,,false,true,CN,cold-weather
+TEST Glove liners x40,AbilityOne Base Supply Center,480,0,https://example.test/a1-liners,2026-11-20T12:00:00-08:00,true,AbilityOne,false,true,US,liner
+TEST Heated gloves x40,AbilityOne Base Supply Center,1400,0,https://example.test/a1-heated,2026-11-20T12:00:00-08:00,false,AbilityOne,false,true,US,cold-weather
+TEST Hikvision thermal camera,Commercial Vendor C,900,0,https://example.test/vendor-c,2026-11-20T12:00:00-08:00,true,,false,false,CN,rugged;cold-weather
