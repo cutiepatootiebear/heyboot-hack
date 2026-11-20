@@ -27,6 +27,7 @@ The gear run is **proof the agent works**, not the point. The point is that Hey 
 ### 0:45–1:30 — Gear run (proof, not the pitch)
 - Send: `Report to SOI Tuesday. Need cammies, a cover, and running shoes. Budget $250.`
 - "It recalled his 10.5-wide shoes and Brooks preference from memory, and asked **once** for the two sizes it didn't have. No back-and-forth."
+- Wink, as the memory comes back: "That's Cognee doing the remembering. It made this whole build a breeze — we barely had to think about it. Which feels appropriate for a memory layer."
 - Send: `Blouse and trousers Medium-Regular, cover 7 3/8.`
 - "It saves each size, then searches the catalog in the same turn."
 - Fast narration: "Every price is a real catalog row with a store URL and capture time — no made-up numbers. 'Not found' beats a guess."
