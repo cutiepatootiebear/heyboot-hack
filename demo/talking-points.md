@@ -15,11 +15,13 @@ The gear run is **proof the agent works**, not the point. The point is that Hey 
 ## 3-minute outline
 
 ### 0:00–0:25 — The hook
-- "A Marine texts Hey Boot about gear before SOI. What he doesn't say is that he's barely holding it together."
-- "Most shopping agents miss that. Ours checks every single message — before it does anything else."
+- "The first year is the hardest. [VERIFY before recording: 'E-1 to E-4 were half of all active-duty suicides in 2024.' If it can't be sourced, drop the number and keep the next line.]"
+- "Most of what crushes a new Marine isn't dramatic. It's logistics nobody explains: what to buy, where, what fits, who's scamming him."
+- "We're trying to get to zero suicides by 2032. This is the first brick — an agent that checks every message, before it does anything else."
 
 ### 0:25–0:45 — What's actually built
-- "One text in. It remembers him, shops with sources, asks for one YES, and shows a receipt you can audit."
+- "No app. Just text."
+- "One message in. It remembers him, shops with sources, asks for one YES, and shows a receipt you can audit."
 - "That's the foundation. Here's the foundation working."
 
 ### 0:45–1:30 — Gear run (proof, not the pitch)
@@ -31,14 +33,14 @@ The gear run is **proof the agent works**, not the point. The point is that Hey 
 
 ### 1:30–1:55 — Sourced discount + trust in action
 - "Holabird lists 10% military discount, but Hey Boot doesn't take the catalog's word for it. It checked Holabird's own policy page through Senso — cited right on the card. Only then does the discount apply."
-- "The Marine verifies his own status at the store. The agent never handles credentials."
+- "The new blouse was out of stock, so it went used. The Marine verifies his own status at the store. The agent never handles credentials."
 - Send `YES` → test charge. Send `YES` again → "Already done. No second charge."
 - Say out loud: "Test mode. No real money moved."
 
 ### 1:55–2:25 — The pivot (the vision beat)
 - Send a crisis message on the same handle: `I don't know if I can do this anymore.`
 - Have the 988 / press 1 / text 838255 reply ready on screen.
-- "Same agent. Same channel. A different kind of save. Most never ask for help. This one didn't have to."
+- "Same agent. Same channel. A different kind of save. It hands him to a human and stops shopping. Most never ask for help. This one didn't have to."
 
 ### 2:25–2:50 — The receipt as proof of the whole mission
 - Open the receipt from the gear run.
@@ -47,7 +49,9 @@ The gear run is **proof the agent works**, not the point. The point is that Hey 
 - Hold on **VERIFIED** (Senso) and **✓ all records match their sha256 chain**.
 
 ### 2:50–3:00 — Close
+- "Today it's gear for SOI. Next: PCS moves, his first car, the transition out — a text-first agent for his whole contract."
 - "Zero suicides by 2032. We're not there. But every message is now a chance to catch someone — and we can prove it."
+- "Hey Boot."
 
 ## Setup
 - Use a handle starting with `demo` so the seeded memory (10.5 wide, Brooks) is present.
@@ -55,6 +59,7 @@ The gear run is **proof the agent works**, not the point. The point is that Hey 
 - Crises are detected via the classifier before any tool call; the YES fast path never calls it.
 
 ## Guardrails
+- **Verify the 2024 suicide statistic before recording.** If it can't be sourced, don't say the number — the mission stands without it.
 - Never claim we *prevented* a suicide — say "a chance to catch someone."
 - Product name stays **Hey Boot**; never call the user "boot."
 - Never ask for card, SSN, bank, password, DoD credentials, or ID/CAC photos.
