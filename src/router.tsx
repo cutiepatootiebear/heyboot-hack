@@ -1,6 +1,6 @@
 import { createRouter } from '@tanstack/react-router'
 import { QueryClient } from '@tanstack/react-query'
-import { routerWithQueryClient } from '@tanstack/react-router-with-query'
+import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
 import { ConvexQueryClient } from '@convex-dev/react-query'
 import { ConvexProvider } from 'convex/react'
 import { routeTree } from './routeTree.gen'
@@ -23,8 +23,7 @@ export function getRouter() {
   })
   convexQueryClient.connect(queryClient)
 
-  const router = routerWithQueryClient(
-    createRouter({
+  const router = createRouter({
       routeTree,
       defaultPreload: 'intent',
       context: { queryClient },
@@ -39,9 +38,8 @@ export function getRouter() {
           {children}
         </ConvexProvider>
       ),
-    }),
-    queryClient,
-  )
+  })
+  setupRouterSsrQueryIntegration({ router, queryClient })
 
   return router
 }
