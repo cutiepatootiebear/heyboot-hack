@@ -39,7 +39,7 @@ http.route({
     const r = await ctx.runMutation(internal.inbound.receive, {
       handle,
       text,
-      externalId: `web:${b.messageId}`,
+      externalId: `web:${handle}:${b.messageId}`,
       channel: "web",
     });
     if (r.duplicate) return json({ duplicate: true, reply: null });
