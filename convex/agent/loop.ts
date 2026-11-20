@@ -11,7 +11,7 @@ import { createAuditor } from "../lib/audit";
 import { searchCatalog } from "../tools/catalog";
 import { proposePurchase, checkedAt, type ProposeInput } from "../tools/propose";
 import { SYSTEM_PROMPT } from "./prompt";
-import { cogneeConfigured, recall as cogneeRecall } from "../integrations/cognee";
+import { cogneeConfigured, recall as cogneeRecall, save as cogneeSave } from "../integrations/cognee";
 
 const MODEL = "claude-sonnet-5-5";
 const MAX_TURNS = 8;
@@ -26,6 +26,22 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
       type: "object",
       properties: { query: { type: "string", description: "What you want to recall, e.g. 'shoe size'." } },
       required: ["query"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "save_memory",
+    description:
+      "Save one fact the user told you about themselves (a size or preference) so you never have to ask again. " +
+      "Use short snake_case keys: cammies_size, cover_size, undershirt_size, boot_size, shoe_size, brand_preference.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        key: { type: "string" },
+        value: { type: "string", description: "The fact in the user's own terms, e.g. 'MCCUU blouse and trousers: Medium-Regular'." },
+      },
+      required: ["key", "value"],
       additionalProperties: false,
     },
   },
@@ -177,22 +193,45 @@ async function runTool(
     switch (name) {
       case "recall_memory": {
         const query = typeof input.query === "string" && input.query.trim() ? input.query : "sizes and preferences";
+        const convexMemories = await ctx.runQuery(internal.tools.data.recallMemories, { userId });
+        // Facts saved during this conversation may still be processing in Cognee (~10 s),
+        // so they are always included from Convex alongside Cognee's answer.
+        const savedByAgent = convexMemories.filter((m) => m.origin === "agent");
         let fallbackReason = "Cognee not configured";
         if (cogneeConfigured()) {
           try {
-            const memories = await cogneeRecall(userId, query);
-            if (memories.length) {
-              await audit.log("recall_memory", input, { memories, backend: "cognee" });
-              return { result: { memories, backend: "cognee" }, isError: false };
+            const cognee = await cogneeRecall(userId, query);
+            if (cognee.length) {
+              const memories = [...cognee.map((m) => ({ ...m, source: "cognee" as const })), ...savedByAgent];
+              const backend = savedByAgent.length ? "cognee+convex(recent saves)" : "cognee";
+              await audit.log("recall_memory", input, { memories, backend });
+              return { result: { memories, backend }, isError: false };
             }
             fallbackReason = "Cognee returned nothing";
           } catch (err) {
             fallbackReason = `Cognee error: ${err instanceof Error ? err.message : String(err)}`;
           }
         }
-        const memories = await ctx.runQuery(internal.tools.data.recallMemories, { userId });
-        await audit.log("recall_memory", input, { memories, backend: "convex", fallbackReason });
-        return { result: { memories, backend: "convex" }, isError: false };
+        await audit.log("recall_memory", input, { memories: convexMemories, backend: "convex", fallbackReason });
+        return { result: { memories: convexMemories, backend: "convex" }, isError: false };
+      }
+      case "save_memory": {
+        const key = String(input.key ?? "").trim().slice(0, 64);
+        const value = String(input.value ?? "").trim().slice(0, 300);
+        if (!key || !value) return { result: { error: "key and value are required" }, isError: true };
+        await ctx.runMutation(internal.tools.data.saveMemory, { userId, key, value });
+        let cognee: { saved: boolean; error?: string; pipelineRunId?: string } = { saved: false, error: "Cognee not configured" };
+        if (cogneeConfigured()) {
+          try {
+            const r = await cogneeSave(userId, key, value);
+            cognee = { saved: true, pipelineRunId: r.id };
+          } catch (err) {
+            cognee = { saved: false, error: err instanceof Error ? err.message : String(err) };
+          }
+        }
+        const result = { saved: true, key, value, convex: true, cognee };
+        await audit.log("save_memory", input, result);
+        return { result, isError: false };
       }
       case "search_catalog": {
         const rows = await searchCatalog({

@@ -10,10 +10,6 @@ export const isYes = (text: string) => YES_WORDS.has(text.trim().toLowerCase());
 const DEMO_MEMORIES: { key: string; value: string }[] = [
   { key: "shoe_size", value: "Men's 10.5, wide (2E/EE)" },
   { key: "brand_preference", value: "Prefers Brooks running shoes" },
-  { key: "cammies_size", value: "MCCUU blouse and trousers: Medium-Regular" },
-  { key: "cover_size", value: "8-point cover: 7 3/8 (stores that sell S/M/L: Medium)" },
-  { key: "undershirt_size", value: "Coyote brown undershirt: Medium" },
-  { key: "boot_size", value: "Boots: men's 10.5 wide" },
 ];
 
 export const receive = internalMutation({
