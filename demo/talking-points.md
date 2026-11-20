@@ -22,7 +22,6 @@ The gear run is **proof the agent works**, not the point. The point is that Hey 
 ### 0:25–0:45 — What's actually built
 - "No app. Just text."
 - "One message in. It remembers him, shops with sources, asks for one YES, and shows a receipt you can audit."
-- "The whole loop runs on Convex — tools, state, audit calls. It's the kind of infrastructure you forget about, which is the highest praise infrastructure can get."
 - "That's the foundation. Here's the foundation working."
 
 ### 0:45–1:30 — Gear run (proof, not the pitch)
@@ -38,7 +37,6 @@ The gear run is **proof the agent works**, not the point. The point is that Hey 
 - Wink: "Senso's whole job is not guessing. We took that personally — a discount with no source is 'not found,' not a number we made up."
 - "The new blouse was out of stock, so it went used. The Marine verifies his own status at the store. The agent never handles credentials."
 - Send `YES` → test charge. Send `YES` again → "Already done. No second charge."
-- Wink: "Stripe's test mode — real plumbing, no real money. We get to prove the charge is idempotent without charging anyone. Everybody wins."
 - Say out loud: "Test mode. No real money moved."
 
 ### 1:55–2:25 — The pivot (the vision beat)
@@ -50,7 +48,6 @@ The gear run is **proof the agent works**, not the point. The point is that Hey 
 - Open the receipt from the gear run.
 - "Every step is chained by SHA-256 in SingleStore, and the page re-verifies the chain in the browser."
 - "Here's the `crisis_check` step — Haiku `NO` on the shopping messages, `YES` on the last one. You can see exactly what it detected, when, and what it said. That's what makes an agent you can trust with something this serious."
-- Wink: "Sonnet does the shopping, Haiku does the caring. We gave the smaller model the bigger job — it turns out it notices the one thing that matters."
 - Hold on **VERIFIED** (Senso) and **✓ all records match their sha256 chain**.
 
 ### 2:50–3:00 — Close
