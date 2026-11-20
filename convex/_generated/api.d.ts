@@ -8,7 +8,18 @@
  * @module
  */
 
+import type * as agent_loop from "../agent/loop.js";
+import type * as agent_prompt from "../agent/prompt.js";
+import type * as http from "../http.js";
+import type * as inbound from "../inbound.js";
+import type * as integrations_stripe from "../integrations/stripe.js";
+import type * as lib_audit from "../lib/audit.js";
+import type * as lib_singlestore from "../lib/singlestore.js";
 import type * as myFunctions from "../myFunctions.js";
+import type * as tools_catalog from "../tools/catalog.js";
+import type * as tools_data from "../tools/data.js";
+import type * as tools_propose from "../tools/propose.js";
+import type * as tools_purchase from "../tools/purchase.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +28,18 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "agent/loop": typeof agent_loop;
+  "agent/prompt": typeof agent_prompt;
+  http: typeof http;
+  inbound: typeof inbound;
+  "integrations/stripe": typeof integrations_stripe;
+  "lib/audit": typeof lib_audit;
+  "lib/singlestore": typeof lib_singlestore;
   myFunctions: typeof myFunctions;
+  "tools/catalog": typeof tools_catalog;
+  "tools/data": typeof tools_data;
+  "tools/propose": typeof tools_propose;
+  "tools/purchase": typeof tools_purchase;
 }>;
 
 /**
