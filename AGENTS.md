@@ -8,20 +8,23 @@ Submit by 4:30 PT (public repo, 3-min demo video, tools used, team). Target fini
 
 | Owner | Branch | Files you may change |
 |---|---|---|
-| Onyu (`dhsdb010`) | `receipt-page` | `src/routes/receipt.$proposalId.tsx`, `src/components/receipt/`, `convex/scoring/` |
+| Ben (`bbeirut`) | `agent-loop` | `convex/agent/` (Sonnet tool loop, tool definitions, system prompt, Anthropic client), `convex/tools/` (the 8 tool implementations), `convex/inbound.ts` (dedupe + routing + YES fast path), `convex/crisis.ts` (Haiku classifier) |
+| Onyu (`dhsdb010`) | `receipt-page` | `src/routes/receipt.$proposalId.tsx`, `src/components/receipt/`, `convex/scoring/`; plus `data/catalog.csv` (by PR to `main`) |
 | Keanu (`kc-routerplus`) | `integrations` | `convex/integrations/senso.ts`, `convex/integrations/stripe.ts`, `convex/integrations/cognee.ts`, `scripts/senso-ingest.ts`, `scripts/integrations-smoke.ts` |
-| Jameel | `main` | everything else: `convex/` (schema, http, inbound, crisis, agent, tools, lib), `db/`, `data/`, `scripts/csv-to-seed.mjs`, `package.json`, configs, this file |
+| Jameel | `main` | infra and everything not listed above: `convex/schema.ts`, `convex/http.ts` (`POST /chat`, Sendblue webhook), `convex/lib/` (audit writer `audit.ts`, `singlestore.ts`, `sendblue.ts`), `convex/receipt.ts` (the receipt query), `db/`, `data/` (except `catalog.csv`), `scripts/csv-to-seed.mjs`, `package.json`, configs, Vercel/Convex setup, this file |
 
 Rules:
 1. Work only in your files. Need a change anywhere else (a package, a schema field, a style)? Ask on `main`; don't do it on your branch.
 2. Open a PR to `main`. No direct pushes to `main` from feature branches.
 3. Never commit `.env*` files (only `.env.example`). Keys live in your own `.env.local`.
 4. `src/routeTree.gen.ts` is generated. Never hand-edit it; on conflict take `main`'s copy and run the dev server once.
-5. `data/` changes (catalog rows, Senso source list) go to `main` by PR, whoever does the task.
+5. `data/` changes go to `main` by PR. Onyu owns `data/catalog.csv`; the Senso source list is open to whoever takes that task.
 
 ### Interfaces between owners
 
-`convex/integrations/*` are plain TypeScript functions (no Convex query/mutation/action definitions). Core code in `convex/tools/` calls them.
+`convex/integrations/*` are plain TypeScript functions (no Convex query/mutation/action definitions). Ben's code in `convex/tools/` calls them.
+
+Main ↔ agent loop: `convex/http.ts` (main) hands each inbound message to Ben's handler in `convex/inbound.ts`. Ben's code writes every step through `logStep()` from `convex/lib/audit.ts` (main), which writes the `audit_events` row; it never writes SQL to SingleStore itself. Tables Ben needs that aren't in `convex/schema.ts` → ask on `main`.
 
 ```ts
 // senso.ts
