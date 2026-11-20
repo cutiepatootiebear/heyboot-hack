@@ -17,6 +17,8 @@ import type * as integrations_stripe from "../integrations/stripe.js";
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_singlestore from "../lib/singlestore.js";
 import type * as myFunctions from "../myFunctions.js";
+import type * as receipt from "../receipt.js";
+import type * as scoring_scoring from "../scoring/scoring.js";
 import type * as tools_catalog from "../tools/catalog.js";
 import type * as tools_data from "../tools/data.js";
 import type * as tools_memorySync from "../tools/memorySync.js";
@@ -39,6 +41,8 @@ declare const fullApi: ApiFromModules<{
   "lib/audit": typeof lib_audit;
   "lib/singlestore": typeof lib_singlestore;
   myFunctions: typeof myFunctions;
+  receipt: typeof receipt;
+  "scoring/scoring": typeof scoring_scoring;
   "tools/catalog": typeof tools_catalog;
   "tools/data": typeof tools_data;
   "tools/memorySync": typeof tools_memorySync;
