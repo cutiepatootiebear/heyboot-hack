@@ -129,7 +129,8 @@ def _why(o: Dict) -> str:
 # GPC mode (Government Purchase Card / unit buyer)
 #
 # Hard rejects, in order: out of stock, over budget, Section 889 banned vendor,
-# Berry Amendment (only when the caller says it applies), then the
+# Berry Amendment (only when the caller says it applies: DFARS 225.7002-2(a)
+# exempts buys of $200,000 or less, except recruit athletic footwear), then the
 # mandatory-source gate (FAR Part 8: if any eligible option comes from a
 # mandatory source such as AbilityOne, every non-mandatory option is rejected).
 # Survivors: score = 0.60*(1 - price/budget) + 0.40*spec_match
