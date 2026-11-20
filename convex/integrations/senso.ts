@@ -2,6 +2,9 @@
 //
 // Env: SENSO_API_KEY. Optional SENSO_BASE_URL (defaults to the public API).
 //
+// lookup(question): an answer from the official source pages, or null for "not found".
+// factCheck(claim): verified / conflict / unsupported for one claim on the approve card.
+//
 // Two rules keep citations honest:
 // 1. Search only the official source pages in SOURCES (scoped by content_id). The same
 //    knowledge base also holds team notes such as "Start Here", which match discount
@@ -96,13 +99,14 @@ export function buildQuery(question: string, today: string): string {
   );
 }
 
-// Ask Senso a question, answered only from the official source pages.
-// answer === null means "not found": show "not found" and apply no discount.
+type SearchOpts = { today?: string; probe?: boolean };
+
+// One Senso search over the official source pages only. Returns Senso's answer text and
+// the cited documents: one per document, strongest match first. Anything outside SOURCES
+// is dropped, and so are weak matches: a Holabird answer also returned U.S. Elite Gear at
+// 0.52 and Running Warehouse at 0.41, which would have been cited for a fact they don't state.
 // opts.probe keeps test searches out of Senso's gap report.
-export async function lookup(
-  question: string,
-  opts: { today?: string; probe?: boolean } = {},
-): Promise<LookupResult> {
+async function scopedSearch(query: string, opts: SearchOpts): Promise<{ answer: string; sources: SensoSource[] }> {
   const key = process.env.SENSO_API_KEY;
   if (!key) throw new Error("Senso not configured");
   const base = (process.env.SENSO_BASE_URL || BASE_URL).replace(/\/$/, "");
@@ -118,7 +122,7 @@ export async function lookup(
       method: "POST",
       headers,
       body: JSON.stringify({
-        query: buildQuery(question, opts.today ?? todayPT()),
+        query,
         max_results: 5,
         content_ids: Object.keys(SOURCES),
         require_scoped_ids: true,
@@ -132,12 +136,6 @@ export async function lookup(
   if (!res.ok) throw new Error(`Senso search ${res.status}: ${text.slice(0, 200)}`);
 
   const data = JSON.parse(text) as { answer?: string | null; results?: SearchResult[] };
-  const answer = (data.answer ?? "").trim();
-  if (!answer || answer.includes(NOT_FOUND)) return { answer: null, sources: [] };
-
-  // One source per document, highest-scoring chunk first. Anything outside SOURCES is dropped,
-  // and so are weak matches: a Holabird answer also returned U.S. Elite Gear at 0.52 and
-  // Running Warehouse at 0.41, which would have been cited for a fact they don't state.
   const results = (data.results ?? []).slice().sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   const floor = (results[0]?.score ?? 0) - RELATED_WITHIN;
   const sources: SensoSource[] = [];
@@ -146,6 +144,48 @@ export async function lookup(
     if (!meta || (r.score ?? 0) < floor || sources.some((s) => s.contentId === r.content_id)) continue;
     sources.push({ ...meta, contentId: r.content_id!, versionId: r.version_id ?? null, score: r.score ?? 0 });
   }
-  if (sources.length === 0) return { answer: null, sources: [] };
+  return { answer: (data.answer ?? "").trim(), sources };
+}
+
+// Ask Senso a question, answered only from the official source pages.
+// answer === null means "not found": show "not found" and apply no discount.
+export async function lookup(question: string, opts: SearchOpts = {}): Promise<LookupResult> {
+  const { answer, sources } = await scopedSearch(buildQuery(question, opts.today ?? todayPT()), opts);
+  if (!answer || answer.includes(NOT_FOUND) || sources.length === 0) return { answer: null, sources: [] };
   return { answer, sources };
+}
+
+// Fact-check verdicts, named as the receipt names them (src/components/receipt/types.ts).
+export type Verdict = "verified" | "conflict" | "unsupported";
+
+export type FactCheckResult = {
+  claim: string;
+  verdict: Verdict;
+  // Senso's one-sentence reason, for the audit trail.
+  evidence: string;
+  // The pages behind a verified or conflict verdict; empty when unsupported.
+  sources: SensoSource[];
+};
+
+// Tested 2026-11-20 on six claims, all judged as expected: Holabird 10% verified, Holabird 20%
+// conflict, Target 20% conflict (its offer ended July 4), U.S. Elite Gear 10% verified,
+// Sports Basement 10% and Running Warehouse 10% (no percent on its page) not found.
+export function buildFactCheckQuery(claim: string, today: string): string {
+  return (
+    `Fact-check: ${claim.trim()} (Today is ${today}. Start your reply with exactly one word: ` +
+    `VERIFIED if a source states this is true today, CONFLICT if a source contradicts it ` +
+    `(for example a different percentage, or an offer that has ended), or ${NOT_FOUND} if no ` +
+    `source addresses it. Then one sentence of evidence.)`
+  );
+}
+
+// Check one claim the approve card makes (e.g. "Holabird Sports offers a 10% military
+// discount.") against the official source pages. Only "verified" may stay on the card.
+export async function factCheck(claim: string, opts: SearchOpts = {}): Promise<FactCheckResult> {
+  const { answer, sources } = await scopedSearch(buildFactCheckQuery(claim, opts.today ?? todayPT()), opts);
+  const word = answer.match(/^[^A-Za-z_]*([A-Za-z_]+)/)?.[1]?.toUpperCase() ?? "";
+  const evidence = answer.replace(/^[^A-Za-z_]*[A-Za-z_]+[\s.:,-]*/, "").trim();
+  if (word === "VERIFIED" && sources.length) return { claim, verdict: "verified", evidence, sources };
+  if (word === "CONFLICT" && sources.length) return { claim, verdict: "conflict", evidence, sources };
+  return { claim, verdict: "unsupported", evidence: evidence || "No source addresses this claim.", sources: [] };
 }
