@@ -132,7 +132,8 @@ export function scoreOptions(
 // ---------------------------------------------------------------------------
 // GPC mode (Government Purchase Card / unit buyer). Port of score_gpc in scoring.py.
 // Hard rejects: out of stock, over budget, Section 889 vendor, Berry Amendment
-// (only when berryApplies), spec_match == 0, then the mandatory-source gate
+// (only when berryApplies: DFARS 225.7002-2(a) exempts buys of $200,000 or less,
+// except recruit athletic footwear), spec_match == 0, then the mandatory-source gate
 // (FAR 8.002: if a mandatory source fully meets the spec, non-mandatory options
 // are rejected). Survivors: score = 0.60*(1 - price/budget) + 0.40*spec_match
 // ---------------------------------------------------------------------------

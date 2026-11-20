@@ -45,7 +45,7 @@ export const fixture: ReceiptData = {
       checks: [
         { label: 'Mandatory source', status: 'pass', rule: 'FAR 8.002', source: SOURCES.far8002 },
         { label: 'Section 889', status: 'pass', rule: 'FAR 4.2102', note: 'Vendor not covered', source: SOURCES.far42102 },
-        { label: 'Berry Amendment', status: 'n/a', rule: 'DFARS 225.7002-2', note: 'Below SAT ($350,000); exception applies', source: SOURCES.dfars2257002 },
+        { label: 'Berry Amendment', status: 'n/a', rule: 'DFARS 225.7002-2', note: 'Purchase is under $200,000; exception (a) applies', source: SOURCES.dfars2257002 },
       ],
     },
     {
