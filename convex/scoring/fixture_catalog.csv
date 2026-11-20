@@ -1,0 +1,7 @@
+item,store,price,mil_discount_pct,url,captured_at,in_stock
+TEST Brooks Ghost 16 Men's 10.5 Wide,Brooks Running,140,25,https://example.test/brooks-ghost,2026-11-20T12:00:00-08:00,true
+TEST Brooks Adrenaline GTS 24 Men's 10.5 Wide,Brooks Running,150,25,https://example.test/brooks-gts,2026-11-20T12:00:00-08:00,false
+TEST Nike Pegasus 41 Men's 10.5 Wide,Nike,140,10,https://example.test/nike-pegasus,2026-11-20T12:00:00-08:00,true
+TEST Brooks Ghost 16 Men's 10 Regular,Brooks Running,140,25,https://example.test/brooks-ghost-10,2026-11-20T12:00:00-08:00,true
+TEST Brooks Ghost 16 Men's 10.5 Wide,Other Store,129,10,https://example.test/other-ghost,2026-11-20T12:00:00-08:00,true
+TEST Hoka Clifton 9 Men's 10.5 Wide,Other Store,165,0,https://example.test/hoka,2026-11-20T12:00:00-08:00,true
