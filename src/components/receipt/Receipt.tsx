@@ -107,6 +107,9 @@ export function Receipt({ data }: { data: ReceiptData }) {
   }, [data.events])
 
   const total = data.cart.reduce((sum, l) => sum + l.qty * l.unitPrice, 0)
+  // What was actually charged (the order row, i.e. the amount sent to Stripe); the cart total
+  // is only used before a charge exists.
+  const charged = data.order ? data.order.amountCents / 100 : total
   const listTotal = data.cart.reduce((sum, l) => sum + l.qty * (l.listPrice ?? l.unitPrice), 0)
   const isGpc = data.mode === 'gpc'
   const showScore = data.cart.some((l) => l.score !== undefined)
@@ -354,6 +357,11 @@ export function Receipt({ data }: { data: ReceiptData }) {
         </Section>
 
         <Section title="Summary">
+          {data.order && Math.abs(data.order.amountCents / 100 - total) > 0.005 ? (
+            <div className="rc-bad">
+              ⚠ Line items add up to {usd(total)}, but {usd(data.order.amountCents / 100)} was charged. The charged amount is what counts.
+            </div>
+          ) : null}
           <dl className="rc-summary">
             <div>
               <dt>Items</dt>
@@ -383,7 +391,7 @@ export function Receipt({ data }: { data: ReceiptData }) {
             {data.budget !== undefined ? (
               <div>
                 <dt>Budget left</dt>
-                <dd className={total <= data.budget ? 'rc-ok' : 'rc-bad'}>{usd(data.budget - total)} of {usd(data.budget)}</dd>
+                <dd className={charged <= data.budget ? 'rc-ok' : 'rc-bad'}>{usd(data.budget - charged)} of {usd(data.budget)}</dd>
               </div>
             ) : null}
             <div>
