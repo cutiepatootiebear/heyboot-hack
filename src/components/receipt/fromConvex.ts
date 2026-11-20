@@ -43,6 +43,8 @@ export type AuditRow = {
   output: unknown
   sources: unknown
   ts: string // "YYYY-MM-DD HH:MM:SS[.fff]" UTC, or ISO
+  canonical?: string | null // exact JSON text that was hashed
+  prev_hash?: string | null
   hash?: string | null
 }
 
@@ -96,6 +98,10 @@ function summarize(step: string, input: any, output: any): string {
       return output?.reason === 'no_pending'
         ? 'YES refused: nothing pending, order already placed. No second charge.'
         : `YES refused: ${String(output?.reason ?? 'not allowed').replace(/_/g, ' ')}`
+    case 'save_memory': {
+      const where = output?.cognee?.saved ? 'Cognee + Convex' : 'Convex'
+      return `Saved ${output?.key ?? input?.key} = ${output?.value ?? input?.value} (${where})`
+    }
     case 'stock_check':
       return 'Stock re-checked before charging'
     case 'purchase':
@@ -129,10 +135,17 @@ export function toReceiptData(args: {
     (a, b) => toIso(a.ts).localeCompare(toIso(b.ts)) || a.run_id.localeCompare(b.run_id) || a.seq - b.seq,
   )
 
+  // When a row has its canonical record, display exactly what was hashed.
+  const view = (r: AuditRow) => {
+    const c = r.canonical ? parse(r.canonical) : null
+    return c && typeof c === 'object'
+      ? { ts: String(c.ts ?? r.ts), step: String(c.step ?? r.step), input: c.input, output: c.output, sources: c.sources }
+      : { ts: r.ts, step: r.step, input: parse(r.input), output: parse(r.output), sources: parse(r.sources) }
+  }
+
   const events: AuditEvent[] = rows.map((r) => {
-    const input = parse(r.input)
-    const output = parse(r.output)
-    const sources: Source[] = (parse(r.sources) ?? []).map((s: any) => ({
+    const { ts, step, input, output, sources: rawSources } = view(r)
+    const sources: Source[] = (rawSources ?? []).map((s: any) => ({
       title: s.title,
       url: s.url,
       retrievedAt: s.retrieved_at ?? s.captured_at ?? '',
@@ -140,18 +153,32 @@ export function toReceiptData(args: {
     return {
       seq: r.seq,
       runId: r.run_id,
-      ts: toIso(r.ts),
-      step: r.step,
-      actor: ACTOR[r.step] ?? 'agent',
-      summary: summarize(r.step, input, output),
+      ts: toIso(ts),
+      step,
+      actor: ACTOR[step] ?? 'agent',
+      summary: summarize(step, input, output),
       sources: sources.length ? sources : undefined,
       hash: r.hash ?? undefined,
+      prevHash: r.prev_hash ?? undefined,
+      canonical: r.canonical ?? undefined,
     }
   })
 
-  const firstInbound = rows.find((r) => r.step === 'inbound')
-  const memoryRow = rows.find((r) => r.step === 'recall_memory')
-  const memories: { key: string; value: string }[] = parse(memoryRow?.output)?.memories ?? []
+  // The request is the first message that actually asks for something (skips "hi", "YES"
+  // and short replies), falling back to the first message.
+  const inbound = rows.filter((r) => r.step === 'inbound')
+  const words = (r: AuditRow) => String(parse(r.input)?.text ?? '').trim().split(/\s+/).filter(Boolean).length
+  const firstInbound =
+    inbound.find((r) => parse(r.input)?.route === 'agent' && words(r) >= 5) ?? inbound.find((r) => words(r) >= 5) ?? inbound[0]
+
+  // Memory shown: what was recalled plus what the user told us this conversation (latest wins per key).
+  const memMap = new Map<string, string>()
+  for (const r of rows) {
+    const out = parse(r.output)
+    if (r.step === 'recall_memory') for (const m of out?.memories ?? []) memMap.set(m.key, m.value)
+    if (r.step === 'save_memory' && out?.key) memMap.set(out.key, out.value)
+  }
+  const memories = [...memMap.entries()].map(([key, value]) => ({ key, value }))
 
   const cart: CartLine[] = proposal.items.map((i, n) => ({
     id: `ITEM-${n + 1}`,
@@ -196,7 +223,7 @@ export function toReceiptData(args: {
       text: parse(firstInbound?.input)?.text ?? '',
       at: firstInbound ? toIso(firstInbound.ts) : msToIso(proposal._creationTime),
     },
-    memory: memories.map((m) => ({ key: m.key, value: m.value })),
+    memory: memories,
     cart,
     rejected,
     factChecks: [],

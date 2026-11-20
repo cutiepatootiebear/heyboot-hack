@@ -69,13 +69,20 @@ function ChainLine({ status }: { status: ChainStatus }) {
     case 'verified':
       return (
         <span className="rc-ok">
-          ✓ Hash chain verified in this browser ({status.count} of {status.count} events)
+          ✓ Tamper check passed in this browser: all {status.count} records match their sha256 chain
+          {status.runs > 1 ? ` (${status.runs} runs)` : ''}
+        </span>
+      )
+    case 'partial':
+      return (
+        <span className="rc-warn">
+          ✓ {status.verified} records verified; {status.unhashed} older records were written before hashing
         </span>
       )
     case 'unhashed':
       return <span className="rc-warn">Events have no stored hashes, so the chain can't be verified</span>
     case 'broken':
-      return <span className="rc-bad">✗ Hash chain broken at step #{status.atSeq}: record was changed</span>
+      return <span className="rc-bad">✗ Tamper check failed at step #{status.atSeq}: this record was changed after it was written</span>
     case 'unavailable':
       return <span className="rc-warn">This browser can't verify hashes</span>
   }
@@ -138,8 +145,8 @@ export function Receipt({ data }: { data: ReceiptData }) {
             <>
               <div className="rc-label">{isGpc ? 'Unit profile used' : 'Remembered about you'}</div>
               <dl className="rc-memory">
-                {data.memory.map((m) => (
-                  <div key={m.key}>
+                {data.memory.map((m, i) => (
+                  <div key={`${m.key}-${i}`}>
                     <dt>{m.key}</dt>
                     <dd>{m.value}</dd>
                   </div>
@@ -319,8 +326,8 @@ export function Receipt({ data }: { data: ReceiptData }) {
                   {e.summary}
                   {e.sources?.length ? (
                     <span className="rc-srcs">
-                      {e.sources.map((s) => (
-                        <a key={s.url} href={s.url} target="_blank" rel="noreferrer" title={s.title}>
+                      {e.sources.map((s, si) => (
+                        <a key={`${s.url}-${si}`} href={s.url} target="_blank" rel="noreferrer" title={s.title}>
                           {s.title.length > 48 ? s.title.slice(0, 47) + '…' : s.title} ↗
                         </a>
                       ))}
@@ -337,7 +344,7 @@ export function Receipt({ data }: { data: ReceiptData }) {
         </Section>
 
         <footer className="rc-foot">
-          Hey Boot · {data.testMode ? 'demo data, simulated purchase' : 'live record'} · each event hash = sha256(previous hash | seq | time | step | summary)
+          Hey Boot · {data.testMode ? 'demo data, simulated purchase' : 'live record'} · each record's hash = sha256(previous hash in its run | exact stored record)
         </footer>
       </article>
     </div>

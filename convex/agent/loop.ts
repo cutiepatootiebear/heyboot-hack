@@ -105,9 +105,10 @@ export const run = internalAction({
     runId: v.id("runs"),
     text: v.string(),
     startSeq: v.optional(v.number()),
+    startHash: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ reply: string; status: "done" | "refused" | "error" }> => {
-    const audit = createAuditor(args.runId, args.userId, args.startSeq ?? 0);
+    const audit = createAuditor(args.runId, args.userId, args.startSeq ?? 0, args.startHash);
     if (!args.startSeq) await audit.log("inbound", { text: args.text, route: "agent" }, null);
 
     // Conversation so far (the current inbound message is already stored, so it's the last "in").
