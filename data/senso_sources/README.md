@@ -9,3 +9,4 @@ Rules:
 
 | title | url | covers | retrieved |
 |---|---|---|---|
+| Holabird Sports: Exclusive Discounts (military 10% sitewide via VerifyPass; excludes tennis balls, ball machines, stringing machines, court equipment, gift cards) | https://www.holabirdsports.com/pages/exclusive-discounts | military discount for Holabird catalog rows | 2026-11-20 |
