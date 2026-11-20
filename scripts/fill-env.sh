@@ -33,8 +33,8 @@ ask() { # name prompt [check-prefix] [default]
       if [ -n "$default" ]; then set_key "$name" "$default"; echo "  set to $default"; else echo "  skipped (unchanged)"; fi
       return
     fi
-    if [ "$name" = STRIPE_SECRET_KEY ] && [[ "$v" == sk_live_* ]]; then
-      echo "  That is a LIVE key. Use the TEST key (starts with sk_test_). Try again."; continue
+    if [ "$name" = STRIPE_SECRET_KEY ] && [[ "$v" != sk_test_* && "$v" != rk_test_* ]]; then
+      echo "  That is not a TEST key (must start with sk_test_ or rk_test_). Try again."; continue
     fi
     if [ -n "$prefix" ] && [[ "$v" != "$prefix"* ]]; then
       echo "  That doesn't start with $prefix. Try again (or press Enter to skip)."; continue
@@ -45,7 +45,7 @@ ask() { # name prompt [check-prefix] [default]
 
 echo "Paste each value when asked, then press Enter. Nothing you paste will show on screen."
 ask ANTHROPIC_API_KEY    "Anthropic key (starts with sk-ant-):" "sk-ant-"
-ask STRIPE_SECRET_KEY    "Stripe TEST secret key (starts with sk_test_):" "sk_test_"
+ask STRIPE_SECRET_KEY    "Stripe TEST key (starts with sk_test_ or rk_test_):" ""
 ask SINGLESTORE_HOST     "SingleStore Host (the long address):"
 ask SINGLESTORE_USER     "SingleStore Username (often admin):"
 ask SINGLESTORE_PASSWORD "SingleStore Password:"

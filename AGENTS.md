@@ -36,7 +36,7 @@ ingest(urls: string[]): Promise<{ ingested: number; failed: string[] }>
 recall(userId: string, query: string): Promise<{ key: string; value: string; savedAt: string }[]>
 save(userId: string, key: string, value: string): Promise<{ id: string }>
 
-// stripe.ts  (throws unless STRIPE_SECRET_KEY starts with "sk_test_")
+// stripe.ts  (throws unless STRIPE_SECRET_KEY starts with "sk_test_" or "rk_test_")
 createTestCharge(args: { amountCents: number; idempotencyKey: string;
   metadata: Record<string, string> }): Promise<{ paymentIntentId: string; status: string; amountCents: number }>
 ```
